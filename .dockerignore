@@ -1,0 +1,10 @@
+.git/
+.venv/
+.mypy_cache/
+
+*__pycache__*
+*.swo
+*.swp
+*.pyo
+*.pyc
+*.so

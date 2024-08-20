@@ -1,0 +1,71 @@
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
+
+[tool.hatch.version]
+path = "oc_ref_bot/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["oc_ref_bot"]
+
+[project]
+name = "oc_ref_bot"
+requires-python = ">=3.12"
+dynamic = ["version"]
+dependencies = [
+    "aiogram==3.12.*",
+    "pydantic-settings==2.4.*",
+    "SQLAlchemy==1.4.*",
+    "aiopg==1.4.*"
+]
+
+[project.optional-dependencies]
+test = [
+    "ruff",
+]
+
+[project.scripts]
+start-bot = "oc_ref_bot.main:main"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [".venv"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint]
+select = [
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "C",
+    "E",
+    "ERA",
+    "F",
+    "W",
+    "N",
+    "B",
+    "UP",
+    "PD",
+    "C90",
+    "FBT",
+    "COM",
+    "PIE",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "RSE102",
+    "RET",
+    "NPY",
+    "RUF",
+    "SIM",
+]
+ignore = ["COM812", "RUF001", "RUF100", "RUF003"]

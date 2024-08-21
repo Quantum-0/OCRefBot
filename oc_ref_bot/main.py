@@ -1,3 +1,14 @@
+import sentry_sdk
+
+from oc_ref_bot.config import settings
+
+sentry_sdk.init(
+    dsn=settings.sentry_dsn,
+    traces_sample_rate=1.0,
+    profiles_sample_rate=1.0,
+)
+
+
 import asyncio
 import logging
 import sys

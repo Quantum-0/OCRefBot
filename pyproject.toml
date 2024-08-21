@@ -16,7 +16,8 @@ dependencies = [
     "aiogram==3.12.*",
     "pydantic-settings==2.4.*",
     "SQLAlchemy==1.4.*",
-    "aiopg==1.4.*"
+    "aiopg==1.4.*",
+    "sentry-sdk==2.13.*"
 ]
 
 [project.optional-dependencies]

@@ -127,32 +127,17 @@ async def ref_sent(conn: SAConnection, ref_id: uuid.UUID):
         sa.update(tbl_refs)
         .values(used_count=tbl_refs.c.used_count + 1, used_at=sa.func.now())
         .where(tbl_refs.c.id == ref_id)
+        .returning(tbl_refs)
     )
-    await conn.execute(query)
+    return await (await conn.execute(query)).fetchone()
 
 
-async def go():
-    async with db_engine() as pg:
-        async with pg.acquire() as conn:
-            pass
-            # await create_tables(conn)
-            # print(await msg_from_user(conn, 123, 'vasya', None, 'PUPKIN'))
-            # print(await add_ref(conn, 123, 'my_ref', 'super_doc', 'super_photo'))
-            # print(await add_ref(conn, 123, 'my_ref2', 'super_doc', 'super_photo'))
-            # print(await add_ref(conn, 123, 'mysuperref3', 'super_doc', 'super_photo'))
-            # print(await get_refs(conn, 123, None))
-            # print(await get_refs(conn, 123, '_re'))
-            # print(await get_refs(conn, 123, 'MY'))
-            # print(await get_refs(conn, 123, '2'))
-
-        # async with engine.acquire() as conn:
-        #     await conn.execute(tbl.insert().values(val="abc"))
-        #
-        #     async for row in conn.execute(tbl.select()):
-        #         print(row.id, row.val)
-
-
-__engine = None
+async def del_ref(conn: SAConnection, user_id: int, ref_id: uuid.UUID) -> bool:
+    query = (
+        sa.delete(tbl_refs)
+        .where(sa.and_(tbl_refs.c.user_id == user_id, tbl_refs.c.id == ref_id))
+    )
+    return bool((await conn.execute(query)).rowcount)
 
 
 @contextlib.asynccontextmanager
@@ -161,6 +146,3 @@ async def db_engine():
         user="postgres", database="postgres", host="localhost", password="mysecretpassword"
     ) as engine:
         yield engine
-
-
-asyncio.run(go())

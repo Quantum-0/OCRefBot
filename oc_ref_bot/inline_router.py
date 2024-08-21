@@ -2,9 +2,12 @@ import logging
 import uuid
 
 from aiogram import Router, F
-from aiogram.types import InlineQuery, InlineQueryResultCachedPhoto, InlineQueryResultCachedDocument, ChosenInlineResult
+from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineQuery, InlineQueryResultCachedPhoto, InlineQueryResultCachedDocument, \
+    ChosenInlineResult, ReplyKeyboardMarkup, KeyboardButton
 from aiopg.sa import Engine
 
+from oc_ref_bot.cmd_router import ChatState
 from oc_ref_bot.database import get_refs
 from oc_ref_bot.database import ref_sent as db_ref_sent
 
@@ -35,14 +38,36 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
                 )
             )
     await inline_query.answer(cache_time=30, is_personal=True, results=results)
-    log.info('User %s choosing ref in chat type %s', inline_query.from_user, inline_query.chat_type)
+    log.info('User %s choosing ref in chat type %s', inline_query.from_user.full_name, inline_query.chat_type)
 
 
 @router.chosen_inline_result()
-async def ref_sent(inline_result: ChosenInlineResult, pg: Engine):
+async def ref_sent(inline_result: ChosenInlineResult, state: FSMContext, pg: Engine):
     sent_as_photo = inline_result.result_id.startswith('ph_')
     sent_as_doc = inline_result.result_id.startswith('doc_')
     sent_ref_id = uuid.UUID(inline_result.result_id.replace('ph_', '').replace('doc_', ''))
     async with pg.acquire() as conn:
-        await db_ref_sent(conn, ref_id=sent_ref_id)
-    log.info('User %s sent ref via bot as %s', inline_result.from_user, 'document' if sent_as_doc else 'photo')
+        ref = await db_ref_sent(conn, ref_id=sent_ref_id)
+    log.info('User %s sent ref via bot as %s', inline_result.from_user.full_name, 'document' if sent_as_doc else 'photo')
+
+    if (await state.get_state()) == ChatState.del_ref:
+        if not ref:
+            await state.clear()
+            await inline_result.bot.send_message(
+                inline_result.from_user.id,
+                'Ой.. Кажется эта рефка уже удалена и была отправлена из кэша о:\nБлижайшее время она пропадёт из инлайн-меню!'
+            )
+            return
+        await state.set_state(ChatState.del_ref_confirm)
+        await state.set_data({'ref_id': sent_ref_id})
+        await inline_result.bot.send_message(inline_result.from_user.id, 'Ты точно хочешь удалить рефку с этим персонажем?')
+        await inline_result.bot.send_photo(
+            inline_result.from_user.id,
+            photo=ref['photo_file_id'],
+            reply_markup=ReplyKeyboardMarkup(
+                keyboard=[[KeyboardButton(text='Да, удалить'), KeyboardButton(text='Отменить')]],
+                one_time_keyboard=True,
+            )
+        )
+
+

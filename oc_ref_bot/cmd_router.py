@@ -12,7 +12,7 @@ from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardBut
 from aiopg.sa import Engine
 
 from oc_ref_bot.config import settings
-from oc_ref_bot.database import add_ref, RefAlreadyExistsError
+from oc_ref_bot.database import add_ref, RefAlreadyExistsError, del_ref
 
 router = Router()
 
@@ -23,6 +23,8 @@ class ChatState(StatesGroup):
     name_input = State()
     add_ref = State()
     confirm_adding = State()
+    del_ref = State()
+    del_ref_confirm = State()
 
 
 @router.message(Command('start'))
@@ -69,7 +71,7 @@ async def cmd_help(message: Message):
 
 
 @router.message(Command('add'))
-async def cmd_add(message: Message, state: FSMContext, *args, **kwargs):
+async def cmd_add(message: Message, state: FSMContext):
     await message.bot.send_message(
         message.chat.id,
         'Укажи имя персонажа или название референса, который хочешь добавить'
@@ -119,14 +121,14 @@ async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
     async with pg.acquire() as conn:
         data = await state.get_data()
         try:
-            await add_ref(conn, message.from_user.id, data['name'], data['doc_file_id'], data['photo_file_id'])
+            await add_ref(conn, message.from_user.id, data['name'], data.get('doc_file_id'), data['photo_file_id'])
         except RefAlreadyExistsError:
             await message.answer('Рефка с таким названием уже добавлена! Укажи, пожалуйста, другое название')
             await state.set_state(ChatState.name_input)
             return
         except Exception:
-            await message.answer('Что-то поломалось >.<')
-            return
+            await message.answer('Что-то поломалось \>.\<')
+            raise
     await message.bot.send_message(
         message.chat.id,
         'Хорошо, рефка добавлена, ближайшее время появится в inline-меню бота с:',
@@ -180,7 +182,7 @@ async def cmd_add_3_confirm(message: Message, state: FSMContext, pg: Engine):
             return
         except Exception:
             await message.answer('Что-то поломалось >.<')
-            return
+            raise
     await message.bot.send_message(
         message.chat.id,
         'Хорошо, рефка добавлена, ближайшее время появится в inline-меню бота с:',
@@ -198,4 +200,31 @@ async def cmd_cancel(message: Message, state: FSMContext):
         'Отменено ^-^',
         reply_markup=ReplyKeyboardRemove(),
     )
+    await state.clear()
+
+
+@router.message(Command('del'))
+async def cmd_del(message: Message, state: FSMContext):
+    log.info('User %s deleting ref', message.from_user.full_name)
+    await message.bot.send_message(
+        message.chat.id,
+        'Хорошо, тогда отправь мне пожалуйста реф, который желаешь удалить через инлайн-режим.\n\nДля этого в начале сообщения напиши @OCRefBot и затем выбери реф, который хочешь удалить из появившегося списка с:'
+    )
+    await state.set_state(ChatState.del_ref)
+
+
+@router.message(ChatState.del_ref_confirm, F.text == 'Да, удалить')
+async def cmd_del_confirm(message: Message, state: FSMContext, pg: Engine):
+    async with pg.acquire() as conn:
+        data = await state.get_data()
+        try:
+            result = await del_ref(conn, message.from_user.id, data['ref_id'])
+            if result:
+                await message.answer('Рефка успешно удалена! ^-^', reply_markup=ReplyKeyboardRemove())
+            else:
+                await message.answer('Не получилось удалить рефку, кажется она уже удалена о_О', reply_markup=ReplyKeyboardRemove())
+        except Exception:
+            await message.answer('Что-то поломалось >.<')
+            raise
+    log.info('User %s has deleted ref %s', message.from_user.full_name, data['ref_id'])
     await state.clear()

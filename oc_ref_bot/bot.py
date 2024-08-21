@@ -54,6 +54,7 @@ async def main_bot() -> None:
             BotCommand(command='help', description='Справка по командам'),
             # BotCommand(command='version', description='Текущая версия бота'),
             BotCommand(command='add', description='Добавление референса'),
+            BotCommand(command='del', description='Удаление референса'),
         ])
         log.info('Bot command list updated')
 

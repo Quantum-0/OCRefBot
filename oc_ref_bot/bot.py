@@ -35,6 +35,7 @@ class SavingUsersMiddleware(BaseMiddleware):
 
 
 async def main_bot() -> None:
+    log.info('Starting bot...')
     async with db_engine() as pg_engine:
         dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
         log.info('Dispatcher created')

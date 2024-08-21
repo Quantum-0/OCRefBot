@@ -7,10 +7,12 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./oc_ref_bot:/oc_ref_bot
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 256M

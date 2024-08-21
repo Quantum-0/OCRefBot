@@ -7,6 +7,8 @@ import sqlalchemy as sa
 from aiopg.sa import create_engine, SAConnection
 from sqlalchemy.dialects.postgresql import UUID, insert as pg_insert
 
+from oc_ref_bot.config import settings
+
 metadata = sa.MetaData()
 
 tbl_users = sa.Table(
@@ -143,6 +145,6 @@ async def del_ref(conn: SAConnection, user_id: int, ref_id: uuid.UUID) -> bool:
 @contextlib.asynccontextmanager
 async def db_engine():
     async with create_engine(
-        user="postgres", database="postgres", host="localhost", password="mysecretpassword"
+        user=settings.db_user, database=settings.db_db, host=settings.db_host, password=settings.db_pass,
     ) as engine:
         yield engine

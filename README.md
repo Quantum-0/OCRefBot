@@ -4,7 +4,7 @@ Inline Telegram Bot to store [Original Character Reference Sheet] for quick acce
 
 # TODO
 
-- /del
+- /settings - send only as file, send only as photo, send both
 - /del_all
 - /csv (dump db rows as csv)
 - /dump_all (dumps all db as csv?) (only admin)
@@ -12,3 +12,5 @@ Inline Telegram Bot to store [Original Character Reference Sheet] for quick acce
 - black list of users!
 
 - db creds to envs
+
+- rework /help to less text and categories

@@ -15,6 +15,7 @@ from oc_ref_bot.cmd_router import router as cmd_router
 from oc_ref_bot.config import settings
 from oc_ref_bot.database import msg_from_user, create_tables, db_engine
 from oc_ref_bot.inline_router import router as inline_router
+from oc_ref_bot.admin_router import router as admin_router
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ async def main_bot() -> None:
             # BotCommand(command='version', description='Текущая версия бота'),
             BotCommand(command='add', description='Добавление референса'),
             BotCommand(command='del', description='Удаление референса'),
+            BotCommand(command='admin', description='Меню администратора бота'),
         ])
         log.info('Bot command list updated')
 
@@ -64,6 +66,8 @@ async def main_bot() -> None:
             await bot.set_my_name(f'{settings.bot_name} [{VERSION}]')
         log.info('Bot name was set')
 
+        dp.include_router(admin_router)
+        log.info('Admin router registered')
         dp.include_router(cmd_router)
         log.info('Commands router registered')
         dp.include_router(inline_router)

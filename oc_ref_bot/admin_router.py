@@ -50,9 +50,6 @@ async def cmd_stat(message: Message):
     rkb.button(text='Статистика по пользователям')
     rkb.button(text='Статистика по референсам')
     rkb.button(text='Общая статистика')
-    # Сколько пользователей пользуются ботом всего, сколько всего рефов, сколько раз отправлено, сколько раз максимально один реф кидали
-    # Сколько рефов было использовано/отправлено за последнюю неделю/месяц, сколько юзеров пользовались ботом за последнюю неделю/месяц
-    # TODO ^
     await message.answer('Выберите тип статистики', reply_markup=rkb.as_markup())
 
 
@@ -101,6 +98,32 @@ def ref_row_to_md(ref: dict[str, Any]) -> str:
     )
 
 
+@router.message(AdminFilter, F.text == 'Общая статистика')
+async def cmd_stat_common(message: Message, pg: Engine):
+    log.info('User %s requests common statistics', message.from_user.full_name)
+
+    # Сколько рефов было использовано/отправлено за последнюю неделю/месяц, сколько юзеров пользовались ботом за последнюю неделю/месяц
+    # TODO ^
+    async with pg.acquire() as conn:
+        users_count = await (await conn.execute(sa.select(sa.func.count(tbl_users.c.id)))).scalar()
+        refs_count = await (await conn.execute(sa.select(sa.func.count(tbl_refs.c.id)))).scalar()
+        msgs_sum = await (await conn.execute(sa.select(sa.func.sum(tbl_users.c.messages_count)))).scalar()
+        total_ref_sent = await (await conn.execute(sa.select(sa.func.sum(tbl_refs.c.used_count)))).scalar()
+        max_ref_sent = await (await conn.execute(sa.select(sa.func.max(tbl_refs.c.used_count)))).scalar()
+        last_ref_used = await (await conn.execute(sa.select(sa.func.max(tbl_refs.c.used_at)))).scalar()
+        last_ref_added = await (await conn.execute(sa.select(sa.func.max(tbl_refs.c.created_at)))).scalar()
+        last_user_added = await (await conn.execute(sa.select(sa.func.max(tbl_users.c.created_at)))).scalar()
+    await message.answer(f'''Общая статистика бота:\n
+Всего пользователей: {users_count}
+Всего референсов: {refs_count}
+Суммарное число отправленных сообщений: {msgs_sum}
+Всего референсов отправлено: {total_ref_sent}
+Максимальное количество раз отправки одного референса: {max_ref_sent}
+Дата последнего использования референса: {last_ref_used.strftime('%Y-%m-%d %H:%M:%S')}
+Дата последнего добавления референса: {last_ref_added.strftime('%Y-%m-%d %H:%M:%S')}
+Дала регистрации последнего пользователя: {last_user_added.strftime('%Y-%m-%d %H:%M:%S')}''')
+
+
 @router.message(AdminFilter, F.text == 'Последние 10 новых пользователей бота')
 async def cmd_stat_user_last_reg(message: Message, pg: Engine):
     log.info('User %s requests statistics for users', message.from_user.full_name)
@@ -143,24 +166,22 @@ async def cmd_stat_user_last_active(message: Message, pg: Engine):
 
 @router.message(AdminFilter, F.text == 'Пользователи без референсов')
 async def cmd_stat_user_no_refs(message: Message, pg: Engine):
-    # FIXME
     log.info('User %s requests statistics for users', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (
             sa.select(
                 tbl_users,
-                sa.func.count(tbl_refs.c.id).label('refs_count'),
-                sa.func.max(tbl_refs.c.used_at).label('last_send'),
+                sa.literal(0).label('refs_count'),
+                sa.literal(None).label('last_send'),
             )
-            .order_by(sa.func.max(tbl_refs.c.used_at).desc())
             .outerjoin(tbl_refs, tbl_users.c.id == tbl_refs.c.user_id)
-            .group_by(tbl_users.c.id)
-            .where(sa.func.count(tbl_refs.c.id) == 0)
+            .where(tbl_refs.c.id.is_(None))
+            .order_by(tbl_users.c.created_at.desc())
             .limit(10)
         )
         rows = await (await conn.execute(q)).fetchall()
         resp = '\n\n'.join(user_row_to_md(dict(row)) for row in rows)
-    await message.answer(resp)
+    await message.answer(resp or 'Нет пользователей без референсов')
 
 
 @router.message(AdminFilter, F.text == 'Дамп БД')

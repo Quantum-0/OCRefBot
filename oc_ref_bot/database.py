@@ -83,7 +83,7 @@ async def create_tables(conn):
         """CREATE TABLE IF NOT EXISTS ocrefbot_settings (
             user_id INTEGER NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             show_verification BOOLEAN NOT NULL DEFAULT TRUE,
-            inline_format TEXT NOT NULL DEFAULT "PHOTO+DOC"
+            inline_format TEXT NOT NULL DEFAULT 'PHOTO+DOC'
         )"""
     )
 

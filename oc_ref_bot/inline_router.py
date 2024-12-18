@@ -4,11 +4,11 @@ import uuid
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineQuery, InlineQueryResultCachedPhoto, InlineQueryResultCachedDocument, \
-    ChosenInlineResult, ReplyKeyboardMarkup, KeyboardButton
+    ChosenInlineResult, ReplyKeyboardMarkup, KeyboardButton, InlineQueryResultsButton
 from aiopg.sa import Engine
 
 from oc_ref_bot.cmd_router import ChatState
-from oc_ref_bot.database import get_refs
+from oc_ref_bot.database import get_refs, get_user
 from oc_ref_bot.database import ref_sent as db_ref_sent
 
 router = Router()
@@ -20,6 +20,11 @@ log = logging.getLogger(__name__)
 async def show_user_refs(inline_query: InlineQuery, pg: Engine):
     async with pg.acquire() as conn:
         refs = [dict(ref) for ref in await get_refs(conn, inline_query.from_user.id, inline_query.query)]
+        user = await get_user(conn, inline_query.from_user.id)
+
+    if user.banned:
+        await inline_query.answer(cache_time=600, results=[], button=InlineQueryResultsButton(start_parameter='0', text='Пользователь заблокирован'))
+        return
 
     results = []
     for ref in refs:
@@ -27,6 +32,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
             InlineQueryResultCachedPhoto(
                 id='ph_' + str(ref['id']),
                 photo_file_id=ref['photo_file_id'],
+                caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] else None,
             )
         )
         if ref['doc_file_id']:
@@ -35,6 +41,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
                     id='doc_' + str(ref['id']),
                     document_file_id=ref['doc_file_id'],
                     title=ref['ref_name'],
+                    caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] else None,
                 )
             )
     await inline_query.answer(cache_time=30, is_personal=True, results=results)

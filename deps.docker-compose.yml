@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15.7-bookworm
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword
+    ports:
+      - '0.0.0.0:15432:5432'
+    command:
+      - postgres
+      - -c
+      - log_statement=all
+      - -c
+      - archive_mode=off
+    healthcheck:
+      test: 'pg_isready -d dis -U dis'
+      interval: 2s
+      timeout: 2s
+      retries: 20

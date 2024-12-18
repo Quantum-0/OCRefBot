@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import uuid
+from typing import Any
 
 import psycopg2
 import sqlalchemy as sa
@@ -22,6 +23,7 @@ tbl_users = sa.Table(
     sa.Column("language_code", sa.TEXT),
     sa.Column("created_at", sa.DATETIME, default=sa.func.now(), nullable=False),
     sa.Column("messages_count", sa.INTEGER, default=0, nullable=False),
+    sa.Column("banned", sa.BOOLEAN, default=False),
 )
 
 tbl_refs = sa.Table(
@@ -35,6 +37,15 @@ tbl_refs = sa.Table(
     sa.Column("created_at", sa.DATETIME, default=sa.func.now(), nullable=False),
     sa.Column("used_at", sa.DATETIME, default=None),
     sa.Column("used_count", sa.INTEGER, default=0, nullable=False),
+    sa.Column("verified", sa.BOOLEAN, default=False),
+)
+
+tbl_settings = sa.Table(
+    "ocrefbot_settings",
+    metadata,
+    sa.Column("user_id", sa.ForeignKey("ocrefbot_users.id"), primary_key=True, nullable=False),
+    sa.Column("show_verification", sa.BOOLEAN, default=True),
+    sa.Column("inline_format", sa.TEXT, default="PHOTO+DOC"),
 )
 
 
@@ -49,7 +60,8 @@ async def create_tables(conn):
             is_premium BOOL,
             language_code TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT now(),
-            messages_count INTEGER NOT NULL DEFAULT 0
+            messages_count INTEGER NOT NULL DEFAULT 0,
+            banned BOOL DEFAULT FALSE
         )"""
     )
     await conn.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
@@ -63,7 +75,15 @@ async def create_tables(conn):
             created_at TIMESTAMP NOT NULL DEFAULT now(),
             used_at TIMESTAMP DEFAULT NULL,
             used_count INTEGER NOT NULL DEFAULT 0,
+            verified BOOL DEFAULT FALSE,
             UNIQUE(user_id, ref_name)
+        )"""
+    )
+    await conn.execute(
+        """CREATE TABLE IF NOT EXISTS ocrefbot_settings (
+            user_id INTEGER NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
+            show_verification BOOLEAN NOT NULL DEFAULT TRUE,
+            inline_format TEXT NOT NULL DEFAULT "PHOTO+DOC"
         )"""
     )
 
@@ -80,6 +100,24 @@ async def msg_from_user(conn: SAConnection, user_id: int, username: str, first_n
             }
         )
         .returning(tbl_users)
+    )
+    return await (await conn.execute(query)).fetchone()
+
+
+async def get_user(conn: SAConnection, user_id: int) -> Any:
+    query = sa.select(tbl_users).where(tbl_users.c.id == user_id)
+    return await (await conn.execute(query)).fetchone()
+
+
+async def get_user_with_settings(conn: SAConnection, user_id: int) -> Any:
+    query = (
+        sa.select(
+            tbl_users,
+            sa.func.coalesce(tbl_settings.c.show_verification, True).label('show_verification'),
+            sa.func.coalesce(tbl_settings.c.inline_format, 'PHOTO+DOC').label('inline_format'),
+        )
+        .where(tbl_users.c.id == user_id)
+        .outerjoin(tbl_settings, tbl_users.c.id == tbl_settings.c.user_id)
     )
     return await (await conn.execute(query)).fetchone()
 
@@ -145,6 +183,7 @@ async def del_ref(conn: SAConnection, user_id: int, ref_id: uuid.UUID) -> bool:
 @contextlib.asynccontextmanager
 async def db_engine():
     async with create_engine(
-        user=settings.db_user, database=settings.db_db, host=settings.db_host, password=settings.db_pass,
+        dsn=f'postgresql://{settings.db_user}:{settings.db_pass}@{settings.db_host}/{settings.db_db}',
+        # pool_size=10, max_overflow=0, max_lifetime=1
     ) as engine:
         yield engine

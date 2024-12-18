@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import Callable, Awaitable
 from typing import Any
@@ -16,11 +17,12 @@ from oc_ref_bot.config import settings
 from oc_ref_bot.database import msg_from_user, create_tables, db_engine
 from oc_ref_bot.inline_router import router as inline_router
 from oc_ref_bot.admin_router import router as admin_router
+from oc_ref_bot.settings_router import router as settings_router
 
 log = logging.getLogger(__name__)
 
 
-class SavingUsersMiddleware(BaseMiddleware):
+class UsersMiddleware(BaseMiddleware):
     def __init__(self) -> None:
         pass
 
@@ -30,8 +32,11 @@ class SavingUsersMiddleware(BaseMiddleware):
         pg: Engine = data['pg']
         user: User = data['event_context'].user
         async with pg.acquire() as conn:
-            await msg_from_user(conn, user.id, user.username, user.first_name, user.last_name, user.is_premium,
+            user_db = await msg_from_user(conn, user.id, user.username, user.first_name, user.last_name, user.is_premium,
                                 user.language_code)
+            if user_db.banned:
+                await event.answer('Доступ к боту с данного аккаунта запрещён.')
+                return None
         return await handler(event, data)
 
 
@@ -46,7 +51,7 @@ async def main_bot() -> None:
             async with pg.acquire() as conn:
                 await create_tables(conn)
 
-        dp.message.middleware(SavingUsersMiddleware())
+        dp.message.middleware(UsersMiddleware())
         log.info('Saving users middleware registered')
 
         bot = Bot(settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -57,6 +62,7 @@ async def main_bot() -> None:
             # BotCommand(command='version', description='Текущая версия бота'),
             BotCommand(command='add', description='Добавление референса'),
             BotCommand(command='del', description='Удаление референса'),
+            BotCommand(command='settings', description='Настройки'),
             BotCommand(command='admin', description='Меню администратора бота'),
         ])
         log.info('Bot command list updated')
@@ -70,6 +76,8 @@ async def main_bot() -> None:
         log.info('Admin router registered')
         dp.include_router(cmd_router)
         log.info('Commands router registered')
+        dp.include_router(settings_router)
+        log.info('Settings router registered')
         dp.include_router(inline_router)
         log.info('Inline router registered')
 

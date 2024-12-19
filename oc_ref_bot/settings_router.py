@@ -2,29 +2,44 @@ import logging
 
 from aiogram import Router, F
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiopg.sa import Engine
+
+from oc_ref_bot.database import get_user_settings, set_user_settings
 
 router = Router()
 
 log = logging.getLogger(__name__)
 
+class SettingsState(StatesGroup):
+    settings_verification_mark = State()
+    settings_inline_format = State()
+
+
+main_settings_buttons_markup = ReplyKeyboardBuilder()
+main_settings_buttons_markup.button(text='Изменить настройки для галочки верификации')
+main_settings_buttons_markup.button(text='Изменить формат отправки через инлайн меню')
+main_settings_buttons_markup = main_settings_buttons_markup.as_markup(one_time_keyboard=True)
+
 
 @router.message(Command('settings'))
 async def cmd_settings(message: Message):
-    rkb = ReplyKeyboardBuilder()
-    rkb.button(text='Изменить настройки для галочки верификации')
-    rkb.button(text='Изменить формат отправки через инлайн меню')
-    await message.answer('Вы открыли меню настроек. Выберите, что вы хотите сделать', reply_markup=rkb.as_markup(one_time_keyboard=True),)
+
+    await message.answer('Вы открыли меню настроек. Выберите, что вы хотите сделать', reply_markup=main_settings_buttons_markup,)
     log.info('User %s opens settings', message.from_user.full_name)
 
 
 @router.message(F.text == 'Изменить настройки для галочки верификации')
-async def edit_verification_settings(message: Message, pg: Engine):
+async def edit_verification_settings(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        settings = await get_user_settings(conn, message.from_user.id)
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='✅ Включить отображение верификации')
     rkb.button(text='❌ Выключить отображение верификации')
+    await state.set_state(SettingsState.settings_verification_mark)
     await message.reply(
         'Настройки: галочка верификации\n\n'
         'Галочка верификации ставится под рефками людей, '
@@ -35,17 +50,36 @@ async def edit_verification_settings(message: Message, pg: Engine):
         'под рефкой добавляется подпись о том что реф верифицирован.\n\n'
         'Если один или несколько ваших референсов имеют эту галочку, '
         'но вы не хотите чтоб она отправлялась под рефом - вы можете отключить это здесь.\n\n'
-        'Текущий статус: <b>✅ ВКЛЮЧЕНО</b>',
+        f'Текущий статус: <b>{"✅ ВКЛЮЧЕНО" if settings["show_verification"] else "❌ Выключено"}</b>',
         reply_markup=rkb.as_markup(one_time_keyboard=True),
     )
 
+@router.message(SettingsState.settings_verification_mark, F.text == '✅ Включить отображение верификации')
+async def edit_verification_settings_enable(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, show_verification=True)
+    await state.clear()
+    await message.answer('Отображение галочки верификации включено', reply_markup=main_settings_buttons_markup)
+
+
+@router.message(SettingsState.settings_verification_mark, F.text == '❌ Выключить отображение верификации')
+async def edit_verification_settings_disable(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, show_verification=False)
+    await state.clear()
+    await message.answer('Отображение галочки верификации отключено', reply_markup=main_settings_buttons_markup)
+
 
 @router.message(F.text == 'Изменить формат отправки через инлайн меню')
-async def edit_inline_format(message: Message, pg: Engine):
+async def edit_inline_format(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        settings = await get_user_settings(conn, message.from_user.id)
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='🖼 Только фото')
     rkb.button(text='📂 Только файл')
     rkb.button(text='🖼+📂 Оба')
+    names_dict = {"PHOTO+DOC": "Фото + Файл", "PHOTO": "Фото", "DOC": "Файл"}
+    await state.set_state(SettingsState.settings_inline_format)
     await message.reply(
         'Настройки: формат инлайн меню\n\n'
         'По умолчанию в инлайн меню бот предлагает '
@@ -53,6 +87,27 @@ async def edit_inline_format(message: Message, pg: Engine):
         'Если у вас нет необходимости отправлять рефки как файл,'
         ' или наоборот, как картинку, '
         'вы можете отключить отображение этих пунктов в инлайн меню\n\n'
-        'Текущий статус: <b>Фото + Файл</b>',
+        f'Текущий статус: <b>{names_dict.get(settings["inline_format"])}</b>',
         reply_markup=rkb.as_markup(one_time_keyboard=True),
     )
+
+@router.message(SettingsState.settings_inline_format, F.text == '🖼 Только фото')
+async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, inline_format='PHOTO')
+    await state.clear()
+    await message.answer('Формат инлайн меню изменён на "Только фото"', reply_markup=main_settings_buttons_markup)
+
+@router.message(SettingsState.settings_inline_format, F.text == '📂 Только файл')
+async def edit_inline_format_doc(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, inline_format='DOC')
+    await state.clear()
+    await message.answer('Формат инлайн меню изменён на "Только файл"', reply_markup=main_settings_buttons_markup)
+
+@router.message(SettingsState.settings_inline_format, F.text == '🖼+📂 Оба')
+async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, inline_format='PHOTO+DOC')
+    await state.clear()
+    await message.answer('Формат инлайн меню изменён на "Фото + файл"', reply_markup=main_settings_buttons_markup)

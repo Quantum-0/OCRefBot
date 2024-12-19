@@ -8,7 +8,7 @@ from aiogram.types import InlineQuery, InlineQueryResultCachedPhoto, InlineQuery
 from aiopg.sa import Engine
 
 from oc_ref_bot.cmd_router import ChatState
-from oc_ref_bot.database import get_refs, get_user
+from oc_ref_bot.database import get_refs, get_user, get_user_with_settings
 from oc_ref_bot.database import ref_sent as db_ref_sent
 
 router = Router()
@@ -21,6 +21,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
     async with pg.acquire() as conn:
         refs = [dict(ref) for ref in await get_refs(conn, inline_query.from_user.id, inline_query.query)]
         user = await get_user(conn, inline_query.from_user.id)
+        settings = await get_user_with_settings(conn, inline_query.from_user.id)
 
     if user.banned:
         await inline_query.answer(cache_time=600, results=[], button=InlineQueryResultsButton(start_parameter='0', text='Пользователь заблокирован'))
@@ -28,20 +29,21 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
 
     results = []
     for ref in refs:
-        results.append(
-            InlineQueryResultCachedPhoto(
-                id='ph_' + str(ref['id']),
-                photo_file_id=ref['photo_file_id'],
-                caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] else None,
+        if 'PHOTO' in settings['inline_format']:
+            results.append(
+                InlineQueryResultCachedPhoto(
+                    id='ph_' + str(ref['id']),
+                    photo_file_id=ref['photo_file_id'],
+                    caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] and settings['show_verification'] else None,
+                )
             )
-        )
-        if ref['doc_file_id']:
+        if ref['doc_file_id'] and 'DOC' in settings['inline_format']:
             results.append(
                 InlineQueryResultCachedDocument(
                     id='doc_' + str(ref['id']),
                     document_file_id=ref['doc_file_id'],
                     title=ref['ref_name'],
-                    caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] else None,
+                    caption='@OCRefBot: ✅ Verified Ref Owner' if ref['verified'] and settings['show_verification'] else None,
                 )
             )
     await inline_query.answer(cache_time=30, is_personal=True, results=results)

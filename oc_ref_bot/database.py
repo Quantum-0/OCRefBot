@@ -128,6 +128,31 @@ class RefAlreadyExistsError(Exception):
 class UserNotFoundError(Exception):
     pass
 
+
+async def get_user_settings(conn: SAConnection, user_id: int):
+    query = (
+        sa.select(
+            tbl_users.c.id.label('user_id'),
+            tbl_settings.c.show_verification,
+            tbl_settings.c.inline_format
+        )
+        .select_from(tbl_users)
+        .join(tbl_settings, tbl_users.c.id == tbl_settings.c.user_id)
+        .where(tbl_users.c.id == user_id)
+    )
+    row = await (await conn.execute(query)).fetchone()
+    if row:
+        return row
+
+    query = pg_insert(tbl_settings).values({'user_id': user_id}).returning(tbl_settings)
+    return await (await conn.execute(query)).fetchone()
+
+
+async def set_user_settings(conn: SAConnection, user_id: int, **params):
+    query = sa.update(tbl_settings).values(params).where(tbl_settings.c.user_id == user_id).returning(tbl_settings)
+    return await (await conn.execute(query)).fetchone()
+
+
 async def add_ref(conn: SAConnection, user_id: int, ref_name: str, doc_file_id: str, photo_file_id: str):
     query = (
         pg_insert(tbl_refs)

@@ -46,6 +46,7 @@ tbl_settings = sa.Table(
     sa.Column("user_id", sa.ForeignKey("ocrefbot_users.id"), primary_key=True, nullable=False),
     sa.Column("show_verification", sa.BOOLEAN, default=True),
     sa.Column("inline_format", sa.TEXT, default="PHOTO+DOC"),
+    sa.Column("inline_input_mode", sa.TEXT, default="CAPTION"),
 )
 
 
@@ -83,7 +84,8 @@ async def create_tables(conn):
         """CREATE TABLE IF NOT EXISTS ocrefbot_settings (
             user_id INTEGER NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             show_verification BOOLEAN NOT NULL DEFAULT TRUE,
-            inline_format TEXT NOT NULL DEFAULT 'PHOTO+DOC'
+            inline_format TEXT NOT NULL DEFAULT 'PHOTO+DOC',
+            inline_input_mode TEXT NOT NULL DEFAULT 'CAPTION'
         )"""
     )
 
@@ -115,6 +117,7 @@ async def get_user_with_settings(conn: SAConnection, user_id: int) -> Any:
             tbl_users,
             sa.func.coalesce(tbl_settings.c.show_verification, True).label('show_verification'),
             sa.func.coalesce(tbl_settings.c.inline_format, 'PHOTO+DOC').label('inline_format'),
+            sa.func.coalesce(tbl_settings.c.inline_input_mode, 'CAPTION').label('inline_input_mode'),
         )
         .where(tbl_users.c.id == user_id)
         .outerjoin(tbl_settings, tbl_users.c.id == tbl_settings.c.user_id)
@@ -134,7 +137,8 @@ async def get_user_settings(conn: SAConnection, user_id: int):
         sa.select(
             tbl_users.c.id.label('user_id'),
             tbl_settings.c.show_verification,
-            tbl_settings.c.inline_format
+            tbl_settings.c.inline_format,
+            tbl_settings.c.inline_input_mode,
         )
         .select_from(tbl_users)
         .join(tbl_settings, tbl_users.c.id == tbl_settings.c.user_id)

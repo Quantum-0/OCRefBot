@@ -17,11 +17,14 @@ log = logging.getLogger(__name__)
 class SettingsState(StatesGroup):
     settings_verification_mark = State()
     settings_inline_format = State()
+    settings_input_mode = State()
 
 
 main_settings_buttons_markup = ReplyKeyboardBuilder()
 main_settings_buttons_markup.button(text='Изменить настройки для галочки верификации')
 main_settings_buttons_markup.button(text='Изменить формат отправки через инлайн меню')
+main_settings_buttons_markup.button(text='Переключение обработки поля ввода инлайн меню')
+main_settings_buttons_markup.adjust(1)
 main_settings_buttons_markup = main_settings_buttons_markup.as_markup(one_time_keyboard=True)
 
 
@@ -111,3 +114,40 @@ async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: 
         await set_user_settings(conn, message.from_user.id, inline_format='PHOTO+DOC')
     await state.clear()
     await message.answer('Формат инлайн меню изменён на "Фото + файл"', reply_markup=main_settings_buttons_markup)
+
+
+@router.message(F.text == 'Переключение обработки поля ввода инлайн меню')
+async def edit_input_mode(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        settings = await get_user_settings(conn, message.from_user.id)
+    rkb = ReplyKeyboardBuilder()
+    rkb.button(text='🔍 Использовать ввод как поиск')
+    rkb.button(text='🔤 Использовать ввод как подпись под рефкой')
+    names_dict = {"CAPTION": "Подпись под фото/файлом", "SEARCH": "Поиск референсов"}
+    await state.set_state(SettingsState.settings_input_mode)
+    await message.reply(
+        'Настройки: режим обработки поля ввода в инлайн меню\n\n'
+        'По умолчанию, текст введённый в поле ввода при вызове инлайн меню '
+        'используется в качестве поиска референса по названию.\n'
+        'Если у вас мало референсов, при этом есть необходимость добавлять подпись '
+        'Под отправленным файлом или изображением, вы можете использовать режим отправки подписи\n\n'
+        'В таком случае перестанет работать поиск референсов, '
+        'но можно будет добавить свой текст в сообщение перед отправкой\n\n'
+        f'Текущий статус: <b>{names_dict.get(settings["inline_input_mode"])}</b>',
+        reply_markup=rkb.as_markup(one_time_keyboard=True),
+    )
+
+
+@router.message(SettingsState.settings_input_mode, F.text == '🔍 Использовать ввод как поиск')
+async def edit_input_mode_search(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, inline_input_mode='SEARCH')
+    await state.clear()
+    await message.answer('Режим ввода изменён на: Поиск', reply_markup=main_settings_buttons_markup)
+
+@router.message(SettingsState.settings_input_mode, F.text == '🔤 Использовать ввод как подпись под рефкой')
+async def edit_input_mode_caption(message: Message, pg: Engine, state: FSMContext):
+    async with pg.acquire() as conn:
+        await set_user_settings(conn, message.from_user.id, inline_input_mode='CAPTION')
+    await state.clear()
+    await message.answer('Режим ввода изменён на: Подпись', reply_markup=main_settings_buttons_markup)

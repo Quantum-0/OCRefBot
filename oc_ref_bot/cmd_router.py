@@ -150,7 +150,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         photo_file_id = msg_with_photo.photo[0].file_id
         data.update({'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
     except TelegramBadRequest:
-        await message.answer('Не удалось обработать запрос :\\&lt;')
+        await message.answer('Не удалось обработать запрос :&lt;')
         return
     finally:
         os.remove(path)

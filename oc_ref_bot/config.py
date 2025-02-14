@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     db_pass: str
     db_host: str
     db_db: str
-    healthcheck_url: AnyHttpUrl | None = None
+    healthcheck_url: str | None = None
     healthcheck_period: int = 120
 
 

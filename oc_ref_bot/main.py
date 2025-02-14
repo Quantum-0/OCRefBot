@@ -25,7 +25,7 @@ async def healthcheck() -> None:
         return
     async with aiohttp.ClientSession() as session:
         while True:
-            async with session.get(settings.healthcheck_url):
+            async with session.post(settings.healthcheck_url):
                 pass
             await asyncio.sleep(settings.healthcheck_period)
 

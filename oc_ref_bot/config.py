@@ -1,4 +1,5 @@
 from pydantic import Field, HttpUrl
+from pydantic.v1 import AnyHttpUrl
 from pydantic_settings import BaseSettings
 
 
@@ -11,6 +12,8 @@ class Settings(BaseSettings):
     db_pass: str
     db_host: str
     db_db: str
+    healthcheck_url: AnyHttpUrl | None = None
+    healthcheck_period: int = 120
 
 
 settings = Settings()

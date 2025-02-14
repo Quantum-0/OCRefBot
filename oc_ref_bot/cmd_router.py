@@ -127,7 +127,7 @@ async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
             await state.set_state(ChatState.name_input)
             return
         except Exception:
-            await message.answer('Что-то поломалось \>.\<')
+            await message.answer('Что-то поломалось &gt;.&lt;')
             raise
     await message.bot.send_message(
         message.chat.id,
@@ -151,7 +151,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         data.update({'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
     except TelegramBadRequest:
         await message.answer('Не удалось обработать запрос :&lt;')
-        return
+        raise
     finally:
         os.remove(path)
     await state.set_data(data)
@@ -181,7 +181,7 @@ async def cmd_add_3_confirm(message: Message, state: FSMContext, pg: Engine):
             await state.set_state(ChatState.name_input)
             return
         except Exception:
-            await message.answer('Что-то поломалось >.<')
+            await message.answer('Что-то поломалось &gt;.&lt;')
             raise
     await message.bot.send_message(
         message.chat.id,
@@ -224,7 +224,7 @@ async def cmd_del_confirm(message: Message, state: FSMContext, pg: Engine):
             else:
                 await message.answer('Не получилось удалить рефку, кажется она уже удалена о_О', reply_markup=ReplyKeyboardRemove())
         except Exception:
-            await message.answer('Что-то поломалось >.<')
+            await message.answer('Что-то поломалось &gt;.&lt;')
             raise
     log.info('User %s has deleted ref %s', message.from_user.full_name, data['ref_id'])
     await state.clear()

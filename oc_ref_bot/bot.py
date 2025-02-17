@@ -7,7 +7,7 @@ from aiogram import Dispatcher, Bot, BaseMiddleware
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.strategy import FSMStrategy
-from aiogram.types import BotCommand, User, CallbackQuery
+from aiogram.types import BotCommand, User, CallbackQuery, Update
 from aiogram.types import Message
 from aiopg.sa import Engine
 
@@ -55,6 +55,30 @@ class SentryMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+async def error_handler(update: Update, exception: Exception):
+    user = None
+    if update and update.message:
+        user = update.message.from_user
+    elif update and update.callback_query:
+        user = update.callback_query.from_user
+
+    # Log error to Sentry with user info
+    with sentry_sdk.isolation_scope() as scope:
+        scope.set_tag('Update-Type', str(type(update)))
+        if user:
+            scope.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
+        sentry_sdk.capture_exception(exception)
+
+    # Notify user about the error
+    # if user:
+    #     try:
+    #         await bot.send_message(user_id, "Oops! Something went wrong. Our team is already looking into it.")
+    #     except TelegramAPIError:
+    #         logging.error("Failed to send error message to user")
+
+    return True  # Suppress further propagation of error
+
+
 async def main_bot() -> None:
     log.info('Starting bot...')
     async with db_engine() as pg_engine:
@@ -67,6 +91,9 @@ async def main_bot() -> None:
                 await create_tables(conn)
 
         dp.update.middleware(SentryMiddleware())
+        dp.errors.register(error_handler)
+        log.info('Error handling middlewares registered')
+
         dp.message.middleware(UsersMiddleware())
         log.info('Saving users middleware registered')
 

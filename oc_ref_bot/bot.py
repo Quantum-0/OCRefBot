@@ -41,15 +41,15 @@ class UsersMiddleware(BaseMiddleware):
 
 
 class SentryMiddleware(BaseMiddleware):
+    async def __call__(
+            self, handler: Callable[[Message, dict[str, Any]], Awaitable[Any]], event: Message | CallbackQuery, data: dict[str, Any]
+    ) -> Any:
+        if not isinstance(event, Message | CallbackQuery):
+            return await handler(event, data)
 
-
-    @staticmethod
-    async def on_pre_process_update(update: Update, data: dict):
-        if (not update.message) and (not update.callback_query):
-            return
-
-        user = (update.message or update.callback_query).from_user
+        user = event.from_user
         sentry_sdk.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
+        return await handler(event, data)
 
 
 async def main_bot() -> None:

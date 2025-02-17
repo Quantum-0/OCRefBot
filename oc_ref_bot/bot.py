@@ -52,17 +52,6 @@ class SentryMiddleware(BaseMiddleware):
         sentry_sdk.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
 
 
-
-    # Notify user about the error
-    # if user:
-    #     try:
-    #         await bot.send_message(user_id, "Oops! Something went wrong. Our team is already looking into it.")
-    #     except TelegramAPIError:
-    #         logging.error("Failed to send error message to user")
-
-    return True  # Suppress further propagation of error
-
-
 async def main_bot() -> None:
     log.info('Starting bot...')
     async with db_engine() as pg_engine:

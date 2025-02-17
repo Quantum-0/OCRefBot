@@ -48,7 +48,7 @@ class SentryMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         user = event.from_user
-        sentry_sdk.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
+        sentry_sdk.set_user({"id": user.id, "username": user.username})
         return await handler(event, data)
 
 

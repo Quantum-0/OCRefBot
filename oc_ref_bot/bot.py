@@ -41,33 +41,17 @@ class UsersMiddleware(BaseMiddleware):
 
 
 class SentryMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event, data):
-        user = None
-
-        if isinstance(event, Message | CallbackQuery):
-            user = event.from_user
-
-        if user:
-            with sentry_sdk.isolation_scope() as scope:
-                scope.set_tag('Update-Type', str(type(event)))
-                scope.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
-                return await handler(event, data)
-        return await handler(event, data)
 
 
-async def error_handler(update: Update, exception: Exception):
-    user = None
-    if update and update.message:
-        user = update.message.from_user
-    elif update and update.callback_query:
-        user = update.callback_query.from_user
+    @staticmethod
+    async def on_pre_process_update(update: Update, data: dict):
+        if (not update.message) and (not update.callback_query):
+            return
 
-    # Log error to Sentry with user info
-    with sentry_sdk.isolation_scope() as scope:
-        scope.set_tag('Update-Type', str(type(update)))
-        if user:
-            scope.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
-        sentry_sdk.capture_exception(exception)
+        user = (update.message or update.callback_query).from_user
+        sentry_sdk.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
+
+
 
     # Notify user about the error
     # if user:
@@ -91,7 +75,6 @@ async def main_bot() -> None:
                 await create_tables(conn)
 
         dp.update.middleware(SentryMiddleware())
-        dp.errors.register(error_handler)
         log.info('Error handling middlewares registered')
 
         dp.message.middleware(UsersMiddleware())

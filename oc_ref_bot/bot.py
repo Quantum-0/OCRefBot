@@ -1,13 +1,13 @@
-import asyncio
 import logging
 from collections.abc import Callable, Awaitable
 from typing import Any
 
+import sentry_sdk
 from aiogram import Dispatcher, Bot, BaseMiddleware
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.strategy import FSMStrategy
-from aiogram.types import BotCommand, User
+from aiogram.types import BotCommand, User, CallbackQuery
 from aiogram.types import Message
 from aiopg.sa import Engine
 
@@ -40,6 +40,21 @@ class UsersMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+class SentryMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user = None
+
+        if isinstance(event, Message | CallbackQuery):
+            user = event.from_user
+
+        if user:
+            with sentry_sdk.isolation_scope() as scope:
+                scope.set_tag('Update-Type', str(type(event)))
+                scope.set_user({"id": user.id, "username": user.username, "first_name": user.first_name})
+                return await handler(event, data)
+        return await handler(event, data)
+
+
 async def main_bot() -> None:
     log.info('Starting bot...')
     async with db_engine() as pg_engine:
@@ -51,6 +66,7 @@ async def main_bot() -> None:
             async with pg.acquire() as conn:
                 await create_tables(conn)
 
+        dp.update.middleware(SentryMiddleware())
         dp.message.middleware(UsersMiddleware())
         log.info('Saving users middleware registered')
 

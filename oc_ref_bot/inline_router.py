@@ -21,10 +21,14 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
     async with pg.acquire() as conn:
         user = await get_user(conn, inline_query.from_user.id)
         settings = await get_user_with_settings(conn, inline_query.from_user.id)
-        refs = [dict(ref) for ref in await get_refs(conn, inline_query.from_user.id, inline_query.query if settings['inline_input_mode'] == 'SEARCH' else None)]
+        refs = [dict(ref) for ref in await get_refs(conn, inline_query.from_user.id, inline_query.query if settings.get('inline_input_mode', 'SEARCH') == 'SEARCH' else None)]
 
     if user.banned:
         await inline_query.answer(cache_time=600, results=[], button=InlineQueryResultsButton(start_parameter='0', text='Пользователь заблокирован'))
+        return
+
+    if not refs:
+        await inline_query.answer(cache_time=60, results=[], button=InlineQueryResultsButton(start_parameter='0', text='Рефки не найдены'))
         return
 
     def make_caption(ref) -> str | None:

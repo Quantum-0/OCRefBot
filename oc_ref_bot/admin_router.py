@@ -33,7 +33,7 @@ class AdminFilter(BaseFilter):
 async def cmd_adm(message: Message, state: FSMContext):
     log.info('User %s accessing admin menu', message.from_user.full_name)
     if message.from_user.id != settings.admin_id:
-        await message.answer('У вас нет доступа к меню администратора :<\nЕсли у вас возникла какая-то проблема, появились вопросы или есть пожелания к боту - вы можете обратиться к нему в ЛС - @quantum0')
+        await message.answer('У вас нет доступа к меню администратора :&lt;\nЕсли у вас возникла какая-то проблема, появились вопросы или есть пожелания к боту - вы можете обратиться к нему в ЛС - @quantum0')
         return
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='Статистика')

@@ -7,16 +7,16 @@ from aiogram import Dispatcher, Bot, BaseMiddleware
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.strategy import FSMStrategy
-from aiogram.types import BotCommand, User, CallbackQuery, Update
+from aiogram.types import BotCommand, User, Update
 from aiogram.types import Message
 from aiopg.sa import Engine
 
 from oc_ref_bot import VERSION
+from oc_ref_bot.admin_router import router as admin_router
 from oc_ref_bot.cmd_router import router as cmd_router
 from oc_ref_bot.config import settings
 from oc_ref_bot.database import msg_from_user, create_tables, db_engine
 from oc_ref_bot.inline_router import router as inline_router
-from oc_ref_bot.admin_router import router as admin_router
 from oc_ref_bot.settings_router import router as settings_router
 
 log = logging.getLogger(__name__)
@@ -51,6 +51,7 @@ class SentryMiddleware(BaseMiddleware):
             'id': (event.message or event.callback_query).from_user.id,
             'username': (event.message or event.callback_query).from_user.username,
         })
+        sentry_sdk.set_tag('version', VERSION)
         return await handler(event, data)
 
 

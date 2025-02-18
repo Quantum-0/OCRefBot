@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 async def show_user_refs(inline_query: InlineQuery, pg: Engine):
     async with pg.acquire() as conn:
         user = await get_user(conn, inline_query.from_user.id)
-        settings = await get_user_with_settings(conn, inline_query.from_user.id)
+        settings = await get_user_with_settings(conn, inline_query.from_user.id) or {}
         refs = [dict(ref) for ref in await get_refs(conn, inline_query.from_user.id, inline_query.query if settings.get('inline_input_mode', 'SEARCH') == 'SEARCH' else None)]
 
     if user.banned:
@@ -33,9 +33,9 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
 
     def make_caption(ref) -> str | None:
         caption = ''
-        if ref['verified'] and settings['show_verification']:
+        if ref['verified'] and settings.get('show_verification', True):
             caption += '@OCRefBot: ✅ Verified Ref Owner\n'
-        if settings['inline_input_mode'] == 'CAPTION' and inline_query.query.strip() != '':
+        if settings.get('inline_input_mode', 'SEARCH') == 'CAPTION' and inline_query.query.strip() != '':
             caption += f'Комментарий от пользователя:\n\n{inline_query.query.replace("✅ Verified Ref Owner", "❌ USER TRIES TO SCAM")}'
         if not caption:
             return None
@@ -43,7 +43,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
 
     results = []
     for ref in refs:
-        if 'PHOTO' in settings['inline_format']:
+        if 'PHOTO' in settings.get('inline_format', 'PHOTO+DOC'):
             results.append(
                 InlineQueryResultCachedPhoto(
                     id='ph_' + str(ref['id']),
@@ -51,7 +51,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
                     caption=make_caption(ref),
                 )
             )
-        if ref['doc_file_id'] and 'DOC' in settings['inline_format']:
+        if ref['doc_file_id'] and 'DOC' in settings.get('inline_format', 'PHOTO+DOC'):
             results.append(
                 InlineQueryResultCachedDocument(
                     id='doc_' + str(ref['id']),

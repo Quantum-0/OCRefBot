@@ -13,6 +13,7 @@ from aiopg.sa import Engine
 
 from oc_ref_bot.config import settings
 from oc_ref_bot.database import add_ref, RefAlreadyExistsError, del_ref
+from oc_ref_bot.resizer import limit_image_memory
 
 router = Router()
 
@@ -144,6 +145,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
     path = Path(os.path.dirname(os.path.realpath(__file__))) / str(uuid.uuid4())
     try:
         await message.bot.download(message.document.file_id, destination=path)
+        path = limit_image_memory(str(path), 2**20 * 9.5, step_limit=5)
         msg_with_photo = await message.answer_photo(FSInputFile(path),
                                                     caption='Конвертнул файл так же в фотку, для удобства с:')
         doc_file_id = message.document.file_id

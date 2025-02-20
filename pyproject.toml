@@ -17,7 +17,10 @@ dependencies = [
     "pydantic-settings==2.4.*",
     "SQLAlchemy==1.4.*",
     "aiopg==1.4.*",
-    "sentry-sdk==2.13.*"
+    "sentry-sdk==2.13.*",
+    "numpy==2.2.*",
+    "opencv-python==4.11.0.*",
+    "pillow==11.1.*"
 ]
 
 [project.optional-dependencies]

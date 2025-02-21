@@ -142,7 +142,7 @@ async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
 @router.message(ChatState.add_ref, F.document)
 async def cmd_add_2_doc(message: Message, state: FSMContext):
     data = await state.get_data()
-    path = Path(os.path.dirname(os.path.realpath(__file__))) / str(uuid.uuid4())
+    path = Path(os.path.dirname(os.path.realpath(__file__))) / (str(uuid.uuid4()) + '.' + message.document.file_name.split('.')[-1])
     try:
         await message.bot.download(message.document.file_id, destination=path)
         path = limit_image_memory(str(path), 2**20 * 9.5, step_limit=5)

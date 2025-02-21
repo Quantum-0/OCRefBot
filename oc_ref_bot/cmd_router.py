@@ -145,6 +145,11 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
     path = Path(os.path.dirname(os.path.realpath(__file__))) / (str(uuid.uuid4()) + '.' + message.document.file_name.split('.')[-1])
     try:
         await message.bot.download(message.document.file_id, destination=path)
+        if os.stat(path).st_size > 35*(2**20): # > 35MB
+            await message.answer('Оу май.. Твой файл.. Он такой большой О:\n'
+                                 'Я не смогу принять в себя такой огромный O^O\n'
+                                 'Может быть попробуем с размером поменьше? 👉👈')
+            return
         path = limit_image_memory(str(path), 2**20 * 9.5, step_limit=5)
         msg_with_photo = await message.answer_photo(FSInputFile(path),
                                                     caption='Конвертнул файл так же в фотку, для удобства с:')

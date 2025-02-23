@@ -43,6 +43,12 @@ def _get_size_of_image(image: cv2.typing.MatLike) -> int:
     return buffer.getbuffer().nbytes
 
 
+def _save_image(image: cv2.typing.MatLike, path: str) -> None:
+    image = Image.fromarray(image)
+    with open(path, 'wb') as f:
+        image.save(f, format="JPEG")
+
+
 def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_limit: int = 10) -> str:
     """
         Reduces an image to the required max file size.
@@ -77,6 +83,5 @@ def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_
     log.info('Resized image from %f.2f MB to %.2f MB in %i steps. Time taken: %5.3f seconds', current_memory / 2 ** 20, new_memory / 2 ** 20, steps, time.perf_counter() - start_time)
 
     if new_image is not None:
-        os.remove(path)
-        cv2.imwrite(path, new_image)
+        _save_image(new_image, path)
     return path

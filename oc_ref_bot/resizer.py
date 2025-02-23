@@ -74,5 +74,6 @@ def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_
 
     if new_image is not None:
         os.remove(path)
+        path = path.replace('.png', '.jpg')
         cv2.imwrite(path, new_image)
     return path

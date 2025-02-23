@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import uuid
@@ -156,11 +157,17 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         doc_file_id = message.document.file_id
         photo_file_id = msg_with_photo.photo[0].file_id
         data.update({'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
-    except TelegramBadRequest:
+    except TelegramBadRequest as exc:
+        if exc.message == 'file is too big':
+            await message.answer('Оу май.. Твой файл.. Он такой большой О:\n'
+                                 'Я не смогу принять в себя такой огромный O^O\n'
+                                 'Может быть попробуем с размером поменьше? 👉👈')
+            return
         await message.answer('Не удалось обработать запрос :&lt;')
         raise
     finally:
-        os.remove(path)
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(path)
     await state.set_data(data)
     await state.set_state(ChatState.confirm_adding)
     await message.bot.send_message(

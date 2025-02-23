@@ -49,14 +49,14 @@ def _get_size_of_image(image: cv2.typing.MatLike) -> int:
     # Encode into memory and get size
     buffer = io.BytesIO()
     image = Image.fromarray(image)
-    image.save(buffer, format="JPEG")
+    image.save(buffer, format="PNG")
     return buffer.getbuffer().nbytes
 
 
 def _save_image(image: cv2.typing.MatLike, path: str) -> None:
     image = Image.fromarray(image)
     with open(path, 'wb') as f:
-        image.save(f, format="JPEG")
+        image.save(f, format="PNG")
 
 
 def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_limit: int = 10) -> str:

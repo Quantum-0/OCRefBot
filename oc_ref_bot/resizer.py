@@ -31,6 +31,16 @@ def _change_image_memory(path: str, file_size: int = 2 ** 20) -> cv2.typing.MatL
     new_bytes_ratio = np.sqrt(new_bytes_per_pixel / original_bytes_per_pixel)
     new_width, new_height = int(new_bytes_ratio * width), int(new_bytes_ratio * height)
 
+    # handle max w/h
+    if new_height > 2560:
+        ratio = new_height / 2560
+        new_height /= ratio
+        new_width /= ratio
+    if new_width > 2560:
+        ratio = new_width / 2560
+        new_height /= ratio
+        new_width /= ratio
+
     log.info('Resized to %d x %d', new_width, new_height)
     return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 

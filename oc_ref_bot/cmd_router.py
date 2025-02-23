@@ -158,7 +158,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         photo_file_id = msg_with_photo.photo[0].file_id
         data.update({'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
     except TelegramBadRequest as exc:
-        if exc.message == 'file is too big':
+        if exc.message == 'Bad Request: file is too big':
             await message.answer('Оу май.. Твой файл.. Он такой большой О:\n'
                                  'Я не смогу принять в себя такой огромный O^O\n'
                                  'Может быть попробуем с размером поменьше? 👉👈')

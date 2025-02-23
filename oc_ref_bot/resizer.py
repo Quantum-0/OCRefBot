@@ -42,7 +42,7 @@ def _change_image_memory(path: str, file_size: int = 2 ** 20) -> cv2.typing.MatL
         new_width //= ratio
 
     log.info('Resized to %d x %d', new_width, new_height)
-    return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+    return cv2.resize(image, (int(new_width), int(new_height)), interpolation=cv2.INTER_CUBIC)
 
 
 def _get_size_of_image(image: cv2.typing.MatLike) -> int:

@@ -151,7 +151,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
                                  'Я не смогу принять в себя такой огромный O^O\n'
                                  'Может быть попробуем с размером поменьше? 👉👈')
             return
-        path = limit_image_memory(str(path), 2**20 * 9.5, step_limit=5)
+        path = limit_image_memory(str(path), 2**20 * 4.9, step_limit=5)
         msg_with_photo = await message.answer_photo(FSInputFile(path),
                                                     caption='Конвертнул файл так же в фотку, для удобства с:')
         doc_file_id = message.document.file_id

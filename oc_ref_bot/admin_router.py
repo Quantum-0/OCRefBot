@@ -1,18 +1,18 @@
 import datetime
 import logging
 from csv import DictWriter
-from typing import Literal, Any
+from typing import Any, Literal
 
 import sqlalchemy as sa
 from aiogram import F, Router
-from aiogram.filters import Command, BaseFilter
+from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InputFile, FSInputFile, InputMediaPhoto
+from aiogram.types import FSInputFile, InputMediaPhoto, Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiopg.sa import Engine
 
 from oc_ref_bot.config import settings
-from oc_ref_bot.database import tbl_users, tbl_refs
+from oc_ref_bot.database import tbl_refs, tbl_users
 
 router = Router()
 
@@ -33,7 +33,9 @@ class AdminFilter(BaseFilter):
 async def cmd_adm(message: Message, state: FSMContext):
     log.info('User %s accessing admin menu', message.from_user.full_name)
     if message.from_user.id != settings.admin_id:
-        await message.answer('У вас нет доступа к меню администратора :&lt;\nЕсли у вас возникла какая-то проблема, появились вопросы или есть пожелания к боту - вы можете обратиться к нему в ЛС - @quantum0')
+        await message.answer(
+            'У вас нет доступа к меню администратора :&lt;\nЕсли у вас возникла какая-то проблема, появились вопросы или есть пожелания к боту - вы можете обратиться к нему в ЛС - @quantum0'
+        )
         return
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='Статистика')
@@ -84,6 +86,7 @@ def user_row_to_md(user: dict[str, Any]) -> str:
         f'Последний раз отправлял реф: {user["last_send"].strftime('%Y-%m-%d %H:%M:%S') if user["last_send"] else "N/A"}.'
     )
 
+
 def ref_row_to_md(ref: dict[str, Any]) -> str:
     return (
         f'Реф <code>{ref["id"]}</code>\n'
@@ -113,7 +116,7 @@ async def cmd_stat_common(message: Message, pg: Engine):
         last_ref_used = await (await conn.execute(sa.select(sa.func.max(tbl_refs.c.used_at)))).scalar()
         last_ref_added = await (await conn.execute(sa.select(sa.func.max(tbl_refs.c.created_at)))).scalar()
         last_user_added = await (await conn.execute(sa.select(sa.func.max(tbl_users.c.created_at)))).scalar()
-    await message.answer(f'''Общая статистика бота:\n
+    await message.answer(f"""Общая статистика бота:\n
 Всего пользователей: {users_count}
 Всего референсов: {refs_count}
 Суммарное число отправленных сообщений: {msgs_sum}
@@ -121,7 +124,7 @@ async def cmd_stat_common(message: Message, pg: Engine):
 Максимальное количество раз отправки одного референса: {max_ref_sent}
 Дата последнего использования референса: {last_ref_used.strftime('%Y-%m-%d %H:%M:%S')}
 Дата последнего добавления референса: {last_ref_added.strftime('%Y-%m-%d %H:%M:%S')}
-Дала регистрации последнего пользователя: {last_user_added.strftime('%Y-%m-%d %H:%M:%S')}''')
+Дала регистрации последнего пользователя: {last_user_added.strftime('%Y-%m-%d %H:%M:%S')}""")
 
 
 @router.message(AdminFilter, F.text == 'Последние 10 новых пользователей бота')
@@ -188,14 +191,14 @@ async def cmd_stat_user_no_refs(message: Message, pg: Engine):
 async def cmd_dump(message: Message, pg: Engine):
     log.info('User %s requests db dump', message.from_user.full_name)
     async with pg.acquire() as conn:
-        fname_users = f'dump_users_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv'
+        fname_users = f"dump_users_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
         with open(fname_users, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_users.c])
             rows = await (await conn.execute(sa.select(tbl_users))).fetchall()
             for row in rows:
                 out.writeheader()
                 out.writerow(dict(row))
-        fname_refs = f'dump_refs_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv'
+        fname_refs = f"dump_refs_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
         with open(fname_refs, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_refs.c])
             rows = await (await conn.execute(sa.select(tbl_refs))).fetchall()
@@ -225,7 +228,10 @@ async def cmd_stat_ref_last_sent(message: Message, pg: Engine):
         )
         rows = await (await conn.execute(q)).fetchall()
         resp = '\n\n'.join(ref_row_to_md(dict(row)) for row in rows)
-    await message.bot.send_media_group(message.chat.id, media=[InputMediaPhoto(media=ref['photo_file_id']) for ref in rows])
+    await message.bot.send_media_group(
+        message.chat.id,
+        media=[InputMediaPhoto(media=ref['photo_file_id']) for ref in rows],
+    )
     await message.answer(resp)
 
 
@@ -246,5 +252,7 @@ async def cmd_stat_ref_last_added(message: Message, pg: Engine):
         )
         rows = await (await conn.execute(q)).fetchall()
         resp = '\n\n'.join(ref_row_to_md(dict(row)) for row in rows)
-    await message.bot.send_media_group(message.chat.id, media=[InputMediaPhoto(media=ref['photo_file_id']) for ref in rows])
+    await message.bot.send_media_group(
+        message.chat.id, media=[InputMediaPhoto(media=ref['photo_file_id']) for ref in rows]
+    )
     await message.answer(resp)

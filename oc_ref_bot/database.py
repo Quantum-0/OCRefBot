@@ -1,52 +1,52 @@
-import asyncio
 import contextlib
 import uuid
 from typing import Any
 
 import psycopg2
 import sqlalchemy as sa
-from aiopg.sa import create_engine, SAConnection
-from sqlalchemy.dialects.postgresql import UUID, insert as pg_insert
+from aiopg.sa import SAConnection, create_engine
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from oc_ref_bot.config import settings
 
 metadata = sa.MetaData()
 
 tbl_users = sa.Table(
-    "ocrefbot_users",
+    'ocrefbot_users',
     metadata,
-    sa.Column("id", sa.INTEGER, primary_key=True),
-    sa.Column("username", sa.TEXT),
-    sa.Column("first_name", sa.TEXT),
-    sa.Column("last_name", sa.TEXT),
-    sa.Column("is_premium", sa.BOOLEAN),
-    sa.Column("language_code", sa.TEXT),
-    sa.Column("created_at", sa.DATETIME, default=sa.func.now(), nullable=False),
-    sa.Column("messages_count", sa.INTEGER, default=0, nullable=False),
-    sa.Column("banned", sa.BOOLEAN, default=False),
+    sa.Column('id', sa.INTEGER, primary_key=True),
+    sa.Column('username', sa.TEXT),
+    sa.Column('first_name', sa.TEXT),
+    sa.Column('last_name', sa.TEXT),
+    sa.Column('is_premium', sa.BOOLEAN),
+    sa.Column('language_code', sa.TEXT),
+    sa.Column('created_at', sa.DATETIME, default=sa.func.now(), nullable=False),
+    sa.Column('messages_count', sa.INTEGER, default=0, nullable=False),
+    sa.Column('banned', sa.BOOLEAN, default=False),
 )
 
 tbl_refs = sa.Table(
-    "ocrefbot_refs",
+    'ocrefbot_refs',
     metadata,
-    sa.Column("id", UUID(True), primary_key=True, default=uuid.uuid4),
-    sa.Column("user_id", None, sa.ForeignKey("ocrefbot_users.id"), nullable=False),
-    sa.Column("ref_name", sa.TEXT, nullable=False),
-    sa.Column("doc_file_id", sa.TEXT),
-    sa.Column("photo_file_id", sa.TEXT, nullable=False),
-    sa.Column("created_at", sa.DATETIME, default=sa.func.now(), nullable=False),
-    sa.Column("used_at", sa.DATETIME, default=None),
-    sa.Column("used_count", sa.INTEGER, default=0, nullable=False),
-    sa.Column("verified", sa.BOOLEAN, default=False),
+    sa.Column('id', UUID(True), primary_key=True, default=uuid.uuid4),
+    sa.Column('user_id', None, sa.ForeignKey('ocrefbot_users.id'), nullable=False),
+    sa.Column('ref_name', sa.TEXT, nullable=False),
+    sa.Column('doc_file_id', sa.TEXT),
+    sa.Column('photo_file_id', sa.TEXT, nullable=False),
+    sa.Column('created_at', sa.DATETIME, default=sa.func.now(), nullable=False),
+    sa.Column('used_at', sa.DATETIME, default=None),
+    sa.Column('used_count', sa.INTEGER, default=0, nullable=False),
+    sa.Column('verified', sa.BOOLEAN, default=False),
 )
 
 tbl_settings = sa.Table(
-    "ocrefbot_settings",
+    'ocrefbot_settings',
     metadata,
-    sa.Column("user_id", sa.ForeignKey("ocrefbot_users.id"), primary_key=True, nullable=False),
-    sa.Column("show_verification", sa.BOOLEAN, default=True),
-    sa.Column("inline_format", sa.TEXT, default="PHOTO+DOC"),
-    sa.Column("inline_input_mode", sa.TEXT, default="CAPTION"),
+    sa.Column('user_id', sa.ForeignKey('ocrefbot_users.id'), primary_key=True, nullable=False),
+    sa.Column('show_verification', sa.BOOLEAN, default=True),
+    sa.Column('inline_format', sa.TEXT, default='PHOTO+DOC'),
+    sa.Column('inline_input_mode', sa.TEXT, default='CAPTION'),
 )
 
 
@@ -90,16 +90,38 @@ async def create_tables(conn):
     )
 
 
-async def msg_from_user(conn: SAConnection, user_id: int, username: str, first_name: str, last_name: str, is_premium: bool, language_code: str):
+async def msg_from_user(
+    conn: SAConnection,
+    user_id: int,
+    username: str,
+    first_name: str,
+    last_name: str,
+    is_premium: bool,
+    language_code: str,
+):
     query = (
         pg_insert(tbl_users)
-        .values({'id': user_id, 'username': username, 'first_name': first_name, 'last_name': last_name, 'messages_count': 1, 'is_premium': is_premium, 'language_code': language_code})
+        .values(
+            {
+                'id': user_id,
+                'username': username,
+                'first_name': first_name,
+                'last_name': last_name,
+                'messages_count': 1,
+                'is_premium': is_premium,
+                'language_code': language_code,
+            }
+        )
         .on_conflict_do_update(
             index_elements=('id',),
             set_={
                 'messages_count': tbl_users.c.messages_count + 1,
-                'username': username, 'first_name': first_name, 'last_name': last_name, 'is_premium': is_premium, 'language_code': language_code,
-            }
+                'username': username,
+                'first_name': first_name,
+                'last_name': last_name,
+                'is_premium': is_premium,
+                'language_code': language_code,
+            },
         )
         .returning(tbl_users)
     )
@@ -127,6 +149,7 @@ async def get_user_with_settings(conn: SAConnection, user_id: int) -> Any:
 
 class RefAlreadyExistsError(Exception):
     pass
+
 
 class UserNotFoundError(Exception):
     pass
@@ -160,14 +183,7 @@ async def set_user_settings(conn: SAConnection, user_id: int, **params):
 async def add_ref(conn: SAConnection, user_id: int, ref_name: str, doc_file_id: str, photo_file_id: str):
     query = (
         pg_insert(tbl_refs)
-        .values(
-            {
-                'user_id': user_id,
-                'ref_name': ref_name,
-                'doc_file_id': doc_file_id,
-                'photo_file_id': photo_file_id
-            }
-        )
+        .values({'user_id': user_id, 'ref_name': ref_name, 'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
         .returning(tbl_refs)
     )
     try:
@@ -202,10 +218,7 @@ async def ref_sent(conn: SAConnection, ref_id: uuid.UUID):
 
 
 async def del_ref(conn: SAConnection, user_id: int, ref_id: uuid.UUID) -> bool:
-    query = (
-        sa.delete(tbl_refs)
-        .where(sa.and_(tbl_refs.c.user_id == user_id, tbl_refs.c.id == ref_id))
-    )
+    query = sa.delete(tbl_refs).where(sa.and_(tbl_refs.c.user_id == user_id, tbl_refs.c.id == ref_id))
     return bool((await conn.execute(query)).rowcount)
 
 

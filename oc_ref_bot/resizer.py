@@ -10,17 +10,17 @@ from PIL import Image
 log = logging.getLogger(__name__)
 
 
-def _change_image_memory(path: str, file_size: int = 2 ** 20) -> cv2.typing.MatLike:
+def _change_image_memory(path: str, file_size: int = 2**20) -> cv2.typing.MatLike:
     """
-        Tries to match the image memory to a specific file size.
+    Tries to match the image memory to a specific file size.
 
-        :param path: (str) Path to the image
-        :param file_size: (int) Size of the file in bytes
-        :return: (np.ndarray) rescaled version of the image
+    :param path: (str) Path to the image
+    :param file_size: (int) Size of the file in bytes
+    :return: (np.ndarray) rescaled version of the image
     """
     image = cv2.imread(path)
     if image is None:
-        raise ValueError(f"Error reading image: {path}")
+        raise ValueError(f'Error reading image: {path}')
 
     height, width = image.shape[:2]
     log.info('Got image for change_memory with size = %d x %d', width, height)
@@ -51,26 +51,26 @@ def _get_size_of_image(image: cv2.typing.MatLike) -> int:
     # Encode into memory and get size
     buffer = io.BytesIO()
     image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))  # Fix BGR to RGB
-    image.save(buffer, format="PNG")
+    image.save(buffer, format='PNG')
     return buffer.getbuffer().nbytes
 
 
 def _save_image(image: cv2.typing.MatLike, path: str) -> None:
     image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))  # Fix BGR to RGB
     with open(path, 'wb') as f:
-        image.save(f, format="PNG")
+        image.save(f, format='PNG')
 
 
 def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_limit: int = 10) -> str:
     """
-        Reduces an image to the required max file size.
+    Reduces an image to the required max file size.
 
-        :param step_limit: Max steps count
-        :param path: (str) Path to the original (unchanged) image.
-        :param max_file_size: (int) maximum size of the image
-        :param delta: (float) maximum allowed variation from the max file size.
-            This is a value between 0 and 1, relatively to the max file size.
-        :return: an image path to the limited image.
+    :param step_limit: Max steps count
+    :param path: (str) Path to the original (unchanged) image.
+    :param max_file_size: (int) maximum size of the image
+    :param delta: (float) maximum allowed variation from the max file size.
+        This is a value between 0 and 1, relatively to the max file size.
+    :return: an image path to the limited image.
     """
     start_time = time.perf_counter()
     max_file_size *= 1 - delta
@@ -90,7 +90,7 @@ def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_
         steps += 1
 
         if abs(new_memory - prev_memory) < 10:  # Prevent endless looping
-            log.warning("Image resizing has reached its limit of precision.")
+            log.warning('Image resizing has reached its limit of precision.')
             break
 
         prev_memory = new_memory
@@ -98,8 +98,13 @@ def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_
         if steps > step_limit:
             break
 
-    log.info('Resized image from %.2f MB to %.2f MB in %i steps. Time taken: %5.3f seconds',
-             current_memory / 2**20, new_memory / 2**20, steps, time.perf_counter() - start_time)
+    log.info(
+        'Resized image from %.2f MB to %.2f MB in %i steps. Time taken: %5.3f seconds',
+        current_memory / 2**20,
+        new_memory / 2**20,
+        steps,
+        time.perf_counter() - start_time,
+    )
 
     if new_image is not None:
         _save_image(new_image, path)

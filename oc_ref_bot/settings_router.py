@@ -1,9 +1,9 @@
 import logging
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiopg.sa import Engine
@@ -13,6 +13,7 @@ from oc_ref_bot.database import get_user_settings, set_user_settings
 router = Router()
 
 log = logging.getLogger(__name__)
+
 
 class SettingsState(StatesGroup):
     settings_verification_mark = State()
@@ -30,8 +31,10 @@ main_settings_buttons_markup = main_settings_buttons_markup.as_markup(one_time_k
 
 @router.message(Command('settings'))
 async def cmd_settings(message: Message):
-
-    await message.answer('Вы открыли меню настроек. Выберите, что вы хотите сделать', reply_markup=main_settings_buttons_markup,)
+    await message.answer(
+        'Вы открыли меню настроек. Выберите, что вы хотите сделать',
+        reply_markup=main_settings_buttons_markup,
+    )
     log.info('User %s opens settings', message.from_user.full_name)
 
 
@@ -57,6 +60,7 @@ async def edit_verification_settings(message: Message, pg: Engine, state: FSMCon
         reply_markup=rkb.as_markup(one_time_keyboard=True),
     )
 
+
 @router.message(SettingsState.settings_verification_mark, F.text == '✅ Включить отображение верификации')
 async def edit_verification_settings_enable(message: Message, pg: Engine, state: FSMContext):
     async with pg.acquire() as conn:
@@ -81,7 +85,7 @@ async def edit_inline_format(message: Message, pg: Engine, state: FSMContext):
     rkb.button(text='🖼 Только фото')
     rkb.button(text='📂 Только файл')
     rkb.button(text='🖼+📂 Оба')
-    names_dict = {"PHOTO+DOC": "Фото + Файл", "PHOTO": "Фото", "DOC": "Файл"}
+    names_dict = {'PHOTO+DOC': 'Фото + Файл', 'PHOTO': 'Фото', 'DOC': 'Файл'}
     await state.set_state(SettingsState.settings_inline_format)
     await message.reply(
         'Настройки: формат инлайн меню\n\n'
@@ -94,6 +98,7 @@ async def edit_inline_format(message: Message, pg: Engine, state: FSMContext):
         reply_markup=rkb.as_markup(one_time_keyboard=True),
     )
 
+
 @router.message(SettingsState.settings_inline_format, F.text == '🖼 Только фото')
 async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMContext):
     async with pg.acquire() as conn:
@@ -101,12 +106,14 @@ async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMConte
     await state.clear()
     await message.answer('Формат инлайн меню изменён на "Только фото"', reply_markup=main_settings_buttons_markup)
 
+
 @router.message(SettingsState.settings_inline_format, F.text == '📂 Только файл')
 async def edit_inline_format_doc(message: Message, pg: Engine, state: FSMContext):
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_format='DOC')
     await state.clear()
     await message.answer('Формат инлайн меню изменён на "Только файл"', reply_markup=main_settings_buttons_markup)
+
 
 @router.message(SettingsState.settings_inline_format, F.text == '🖼+📂 Оба')
 async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: FSMContext):
@@ -123,7 +130,7 @@ async def edit_input_mode(message: Message, pg: Engine, state: FSMContext):
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='🔍 Использовать ввод как поиск')
     rkb.button(text='🔤 Использовать ввод как подпись под рефкой')
-    names_dict = {"CAPTION": "Подпись под фото/файлом", "SEARCH": "Поиск референсов"}
+    names_dict = {'CAPTION': 'Подпись под фото/файлом', 'SEARCH': 'Поиск референсов'}
     await state.set_state(SettingsState.settings_input_mode)
     await message.reply(
         'Настройки: режим обработки поля ввода в инлайн меню\n\n'
@@ -144,6 +151,7 @@ async def edit_input_mode_search(message: Message, pg: Engine, state: FSMContext
         await set_user_settings(conn, message.from_user.id, inline_input_mode='SEARCH')
     await state.clear()
     await message.answer('Режим ввода изменён на: Поиск', reply_markup=main_settings_buttons_markup)
+
 
 @router.message(SettingsState.settings_input_mode, F.text == '🔤 Использовать ввод как подпись под рефкой')
 async def edit_input_mode_caption(message: Message, pg: Engine, state: FSMContext):

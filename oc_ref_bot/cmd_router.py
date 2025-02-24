@@ -4,16 +4,16 @@ import os
 import uuid
 from pathlib import Path
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import FSInputFile, KeyboardButton, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiopg.sa import Engine
 
 from oc_ref_bot.config import settings
-from oc_ref_bot.database import add_ref, RefAlreadyExistsError, del_ref
+from oc_ref_bot.database import RefAlreadyExistsError, add_ref, del_ref
 from oc_ref_bot.resizer import limit_image_memory
 
 router = Router()
@@ -38,11 +38,10 @@ async def cmd_start(message: Message):
         'Надеюсь я буду Вам полезен ^-^\n\n'
         'Чтоб получить подробную инструкцию по пользованию боту, используйте команду /help\n\n'
         'Меня сделал @quantum0, по всем вопросам насчёт меня можете обращаться к нему :>\n\n'
-        'Он так же передаёт вам добра и желает хорошего дня ❤️\n\n'
+        'Он так же передаёт вам добра и желает хорошего дня ❤️\n\n',
     )
     await message.bot.send_sticker(
-        message.chat.id,
-       'CAACAgIAAxkBAT2NsWbDhsizAAFqJIcz1hZsDkrJm1UqfQACtUwAAiNsuErWfaHtCbzGbDUE'
+        message.chat.id, 'CAACAgIAAxkBAT2NsWbDhsizAAFqJIcz1hZsDkrJm1UqfQACtUwAAiNsuErWfaHtCbzGbDUE'
     )
     log.info('User %s started the bot', message.from_user.full_name)
 
@@ -67,7 +66,7 @@ async def cmd_help(message: Message):
         'Или лезть в свой канал, искать там закреплённое сообщение и его пересылать. Про "избранное" я вообще молчу.. '
         'Скажу тебе по секрету, у него там такааая помойка из всяких файлов/записок/заметок, ууххх.. '
         'Ну воть, а я сделан для того чтоб помочь легко найти и достать свой реф uwu\n\n'
-        'Так же реф всегда можно удалить, для этого достаточно воспользоваться командой /del и выбрать, какой реф вы хотите удалить c:'
+        'Так же реф всегда можно удалить, для этого достаточно воспользоваться командой /del и выбрать, какой реф вы хотите удалить c:',
     )
     log.info('User %s asked for help', message.from_user.full_name)
 
@@ -76,7 +75,7 @@ async def cmd_help(message: Message):
 async def cmd_add(message: Message, state: FSMContext):
     await message.bot.send_message(
         message.chat.id,
-        'Укажи имя персонажа или название референса, который хочешь добавить'
+        'Укажи имя персонажа или название референса, который хочешь добавить',
     )
     await state.set_state(ChatState.name_input)
     log.info('User %s adding new ref', message.from_user.full_name)
@@ -107,7 +106,7 @@ async def cmd_add_2_photo(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text='Хочу сохранить в таком виде')]],
             one_time_keyboard=True,
-        )
+        ),
     )
     photo_file_id = message.photo[0].file_id
     data['photo_file_id'] = photo_file_id
@@ -144,26 +143,33 @@ async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
 async def cmd_add_2_doc(message: Message, state: FSMContext):
     await message.bot.send_chat_action(message.chat.id, 'upload_photo')
     data = await state.get_data()
-    path = Path(os.path.dirname(os.path.realpath(__file__))) / (str(uuid.uuid4()) + '.' + message.document.file_name.split('.')[-1])
+    path = Path(os.path.dirname(os.path.realpath(__file__))) / (
+        str(uuid.uuid4()) + '.' + message.document.file_name.split('.')[-1]
+    )
     try:
         await message.bot.download(message.document.file_id, destination=path)
-        if os.stat(path).st_size > 35*(2**20): # > 35MB
-            await message.answer('Оу май.. Твой файл.. Он такой большой О:\n'
-                                 'Я не смогу принять в себя такой огромный O^O\n'
-                                 'Может быть попробуем с размером поменьше? 👉👈')
+        if os.stat(path).st_size > 35 * (2**20):  # > 35MB
+            await message.answer(
+                'Оу май.. Твой файл.. Он такой большой О:\n'
+                'Я не смогу принять в себя такой огромный O^O\n'
+                'Может быть попробуем с размером поменьше? 👉👈'
+            )
             return
         path = limit_image_memory(str(path), 2**20 * 9.5, step_limit=7)
         log.info('File size decreased to %d bytes', os.stat(path).st_size)
-        msg_with_photo = await message.answer_photo(FSInputFile(path),
-                                                    caption='Конвертнул файл так же в фотку, для удобства с:')
+        msg_with_photo = await message.answer_photo(
+            FSInputFile(path), caption='Конвертнул файл так же в фотку, для удобства с:'
+        )
         doc_file_id = message.document.file_id
         photo_file_id = msg_with_photo.photo[0].file_id
         data.update({'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
     except TelegramBadRequest as exc:
         if exc.message == 'Bad Request: file is too big':
-            await message.answer('Оу май.. Твой файл.. Он такой большой О:\n'
-                                 'Я не смогу принять в себя такой огромный O^O\n'
-                                 'Может быть попробуем с размером поменьше? 👉👈')
+            await message.answer(
+                'Оу май.. Твой файл.. Он такой большой О:\n'
+                'Я не смогу принять в себя такой огромный O^O\n'
+                'Может быть попробуем с размером поменьше? 👉👈'
+            )
             return
         await message.answer('Не удалось обработать запрос :&lt;')
         raise
@@ -178,7 +184,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text='Сохранить'), KeyboardButton(text='Отменить')]],
             one_time_keyboard=True,
-        )
+        ),
     )
     log.info('User %s uploaded doc with ref', message.from_user.full_name)
 
@@ -224,7 +230,7 @@ async def cmd_del(message: Message, state: FSMContext):
     log.info('User %s deleting ref', message.from_user.full_name)
     await message.bot.send_message(
         message.chat.id,
-        'Хорошо, тогда отправь мне пожалуйста реф, который желаешь удалить через инлайн-режим.\n\nДля этого в начале сообщения напиши @OCRefBot и затем выбери реф, который хочешь удалить из появившегося списка с:'
+        'Хорошо, тогда отправь мне пожалуйста реф, который желаешь удалить через инлайн-режим.\n\nДля этого в начале сообщения напиши @OCRefBot и затем выбери реф, который хочешь удалить из появившегося списка с:',
     )
     await state.set_state(ChatState.del_ref)
 
@@ -238,7 +244,9 @@ async def cmd_del_confirm(message: Message, state: FSMContext, pg: Engine):
             if result:
                 await message.answer('Рефка успешно удалена! ^-^', reply_markup=ReplyKeyboardRemove())
             else:
-                await message.answer('Не получилось удалить рефку, кажется она уже удалена о_О', reply_markup=ReplyKeyboardRemove())
+                await message.answer(
+                    'Не получилось удалить рефку, кажется она уже удалена о_О', reply_markup=ReplyKeyboardRemove()
+                )
         except Exception:
             await message.answer('Что-то поломалось &gt;.&lt;')
             raise

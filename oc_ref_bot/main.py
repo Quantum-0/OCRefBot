@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def healthcheck() -> None:
     if not settings.healthcheck_url:
-        logger.info("Ran without healthcheck")
+        logger.info('Ran without healthcheck')
         return
     async with aiohttp.ClientSession() as session:
         while True:

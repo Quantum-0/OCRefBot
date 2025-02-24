@@ -1,5 +1,4 @@
 from pydantic import Field, HttpUrl
-from pydantic.v1 import AnyHttpUrl
 from pydantic_settings import BaseSettings
 
 

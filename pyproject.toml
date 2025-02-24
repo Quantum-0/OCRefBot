@@ -33,11 +33,11 @@ start-bot = "oc_ref_bot.main:main"
 
 [tool.black]
 line-length = 120
-target-version = ['py311']
+target-version = ['py312']
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py312"
 exclude = [".venv"]
 
 [tool.ruff.format]
@@ -49,27 +49,40 @@ select = [
     "ANN201",
     "ANN202",
     "ANN204",
+    "ANN206",
+    "A",
+    "ARG",
+    "B904",
+    "BLE",
     "C",
+    "COM",
     "E",
     "ERA",
     "F",
+    "FBT",
+    "I",
+    "ISC",
     "W",
     "N",
-    "B",
-    "UP",
+    "NPY",
     "PD",
-    "C90",
-    "FBT",
-    "COM",
     "PIE",
     "PLC",
     "PLE",
     "PLR",
     "PLW",
-    "RSE102",
     "RET",
-    "NPY",
+    "RSE",
     "RUF",
+    "Q",
     "SIM",
+    "T",
+    "TCH",
+    "UP",
+    "DTZ001",
+    "DTZ005",
+    "DTZ006",
+    "DTZ007",
+    "DTZ012",
 ]
 ignore = ["COM812", "RUF001", "RUF100", "RUF003"]

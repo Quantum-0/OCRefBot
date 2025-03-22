@@ -17,6 +17,7 @@ from oc_ref_bot.config import settings
 from oc_ref_bot.database import create_tables, db_engine, msg_from_user
 from oc_ref_bot.inline_router import router as inline_router
 from oc_ref_bot.settings_router import router as settings_router
+from oc_ref_bot.sharing_router import router as sharing_router
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ async def main_bot() -> None:
         log.info('Dispatcher created')
 
         @dp.startup()
-        async def startup(pg, *args, **kwargs):
+        async def startup(pg, *_, **__):
             async with pg.acquire() as conn:
                 await create_tables(conn)
 
@@ -83,6 +84,8 @@ async def main_bot() -> None:
                 # BotCommand(command='version', description='Текущая версия бота'),
                 BotCommand(command='add', description='Добавление референса'),
                 BotCommand(command='del', description='Удаление референса'),
+                BotCommand(command='move', description='Передать персонажа другому владельцу'),
+                BotCommand(command='share', description='Дать доступ другому пользователю к своим рефкам'),
                 BotCommand(command='settings', description='Настройки'),
                 BotCommand(command='admin', description='Меню администратора бота'),
             ]
@@ -98,6 +101,8 @@ async def main_bot() -> None:
         log.info('Admin router registered')
         dp.include_router(cmd_router)
         log.info('Commands router registered')
+        dp.include_router(sharing_router)
+        log.info('Sharing router registered')
         dp.include_router(settings_router)
         log.info('Settings router registered')
         dp.include_router(inline_router)

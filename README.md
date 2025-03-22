@@ -14,3 +14,10 @@ Inline Telegram Bot to store [Original Character Reference Sheet] for quick acce
 - db creds to envs
 
 - rework /help to less text and categories
+
+- share with friend
+- table [sharing]: user_id, friend_id, status
+- meaning: friend_id will see user_id's gallery via bot
+- status = requested, asked, cancelled, active
+- /share_with @username - ask friend to add user's gallery
+- /ask_for_share @username - friend ask user for seeing their gallery

@@ -207,6 +207,21 @@ async def get_refs(conn: SAConnection, user_id: int, filter: str | None):
     return await (await conn.execute(query)).fetchall()
 
 
+async def move_ref_to_new_user(conn: SAConnection, ref_id: uuid.UUID, old_owner_id: int, new_owner_id: int) -> bool:
+    query = (
+        sa.update(tbl_refs)
+        .value(user_id=new_owner_id)
+        .where(
+            sa.and_(
+                tbl_refs.c.user_id == old_owner_id,
+                tbl_refs.c.id == ref_id
+            )
+        )
+        .returning(tbl_refs)
+    )
+    return bool(await (await conn.execute(query)).rowcount)
+
+
 async def ref_sent(conn: SAConnection, ref_id: uuid.UUID):
     query = (
         sa.update(tbl_refs)

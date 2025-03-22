@@ -17,6 +17,7 @@ from aiopg.sa import Engine
 from oc_ref_bot.cmd_router import ChatState
 from oc_ref_bot.database import get_refs, get_user, get_user_with_settings
 from oc_ref_bot.database import ref_sent as db_ref_sent
+from oc_ref_bot.sharing_router import SharingState, cmd_move_3
 
 router = Router()
 
@@ -99,25 +100,28 @@ async def ref_sent(inline_result: ChosenInlineResult, state: FSMContext, pg: Eng
         'document' if sent_as_doc else 'photo',
     )
 
-    if (await state.get_state()) == ChatState.del_ref:
-        if not ref:
-            await state.clear()
+    match(await state.get_state()):
+        case ChatState.del_ref:
+            if not ref:
+                await state.clear()
+                await inline_result.bot.send_message(
+                    inline_result.from_user.id,
+                    'Ой.. Кажется эта рефка уже удалена и была отправлена из кэша о:\nБлижайшее время она пропадёт из инлайн-меню!',
+                )
+                return
+            await state.set_state(ChatState.del_ref_confirm)
+            await state.set_data({'ref_id': sent_ref_id})
             await inline_result.bot.send_message(
                 inline_result.from_user.id,
-                'Ой.. Кажется эта рефка уже удалена и была отправлена из кэша о:\nБлижайшее время она пропадёт из инлайн-меню!',
+                'Ты точно хочешь удалить рефку с этим персонажем?',
             )
-            return
-        await state.set_state(ChatState.del_ref_confirm)
-        await state.set_data({'ref_id': sent_ref_id})
-        await inline_result.bot.send_message(
-            inline_result.from_user.id,
-            'Ты точно хочешь удалить рефку с этим персонажем?',
-        )
-        await inline_result.bot.send_photo(
-            inline_result.from_user.id,
-            photo=ref['photo_file_id'],
-            reply_markup=ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text='Да, удалить'), KeyboardButton(text='Отменить')]],
-                one_time_keyboard=True,
-            ),
-        )
+            await inline_result.bot.send_photo(
+                inline_result.from_user.id,
+                photo=ref['photo_file_id'],
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=[[KeyboardButton(text='Да, удалить'), KeyboardButton(text='Отменить')]],
+                    one_time_keyboard=True,
+                ),
+            )
+        case SharingState.move_select_ref:
+            await cmd_move_3(inline_result, state, sent_ref_id)

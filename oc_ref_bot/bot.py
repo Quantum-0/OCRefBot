@@ -2,12 +2,14 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import aiohttp
 import sentry_sdk
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.strategy import FSMStrategy
 from aiogram.types import BotCommand, Message, Update, User
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiopg.sa import Engine
 
 from oc_ref_bot import VERSION
@@ -59,6 +61,7 @@ class SentryMiddleware(BaseMiddleware):
 
 async def main_bot() -> None:
     log.info('Starting bot...')
+    log.info(f'Webhook mode is {'ENABLED' if settings.webhook_enabled else 'DISABLED'}')
     async with db_engine() as pg_engine:
         dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
         log.info('Dispatcher created')
@@ -67,6 +70,8 @@ async def main_bot() -> None:
         async def startup(pg, *args, **kwargs):
             async with pg.acquire() as conn:
                 await create_tables(conn)
+            if settings.webhook_enabled:
+                await bot.set_webhook(f'{settings.webhook_base_url}{settings.webhook_path}', secret_token=settings.webhook_secret)
 
         dp.update.middleware(SentryMiddleware())
         log.info('Error handling middlewares registered')
@@ -103,5 +108,21 @@ async def main_bot() -> None:
         dp.include_router(inline_router)
         log.info('Inline router registered')
 
-        log.info('Starting polling')
-        await dp.start_polling(bot)
+        if not settings.webhook_enabled:
+            log.info('Starting polling')
+            await bot.delete_webhook(drop_pending_updates=False)
+            await dp.start_polling(bot)
+            return
+
+        log.info('Initializating web server')
+        app = aiohttp.web.Application()
+        webhook_requests_handler = SimpleRequestHandler(
+            dispatcher=dp,
+            bot=bot,
+            secret_token=settings.webhook_secret,
+        )
+        webhook_requests_handler.register(app, path=settings.webhook_path)
+        setup_application(app, dp, bot=bot)
+
+        log.info('Starting web server')
+        aiohttp.web.run_app(app, host=settings.web_server_host, port=settings.web_server_port)

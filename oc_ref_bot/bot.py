@@ -30,13 +30,14 @@ class UsersMiddleware(BaseMiddleware):
     ) -> Any:
         pg: Engine = data['pg']
         user: User = data['event_context'].user
-        async with pg.acquire() as conn:
-            user_db = await msg_from_user(
-                conn, user.id, user.username, user.first_name, user.last_name, user.is_premium, user.language_code
-            )
-            if user_db.banned:
-                await event.answer('Доступ к боту с данного аккаунта запрещён.')
-                return None
+        with sentry_sdk.start_span(op='middleware', name='handle-user'):
+            async with pg.acquire() as conn:
+                user_db = await msg_from_user(
+                    conn, user.id, user.username, user.first_name, user.last_name, user.is_premium, user.language_code
+                )
+                if user_db.banned:
+                    await event.answer('Доступ к боту с данного аккаунта запрещён.')
+                    return None
         return await handler(event, data)
 
 
@@ -47,14 +48,15 @@ class SentryMiddleware(BaseMiddleware):
         if (not event.message) and (not event.callback_query):
             return await handler(event, data)
 
-        sentry_sdk.set_user(
-            {
-                'id': (event.message or event.callback_query).from_user.id,
-                'username': (event.message or event.callback_query).from_user.username,
-            }
-        )
-        sentry_sdk.set_tag('version', VERSION)
-        return await handler(event, data)
+        with sentry_sdk.start_transaction(name='handle-update') as trans:
+            trans.set_user(
+                {
+                    'id': (event.message or event.callback_query).from_user.id,
+                    'username': (event.message or event.callback_query).from_user.username,
+                }
+            )
+            trans.set_tag('version', VERSION)
+            return await handler(event, data)
 
 
 async def main_bot() -> None:
@@ -64,7 +66,7 @@ async def main_bot() -> None:
         log.info('Dispatcher created')
 
         @dp.startup()
-        async def startup(pg, *args, **kwargs):
+        async def startup(pg: Engine, *_: Any, **__: Any) -> None:
             async with pg.acquire() as conn:
                 await create_tables(conn)
 

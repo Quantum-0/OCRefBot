@@ -5,24 +5,33 @@ on:
     branches: [ "master", "develop", "main" ]
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+      - name: run ruff format
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check --diff"
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-      - name: run ruff
-        uses: # TODO: insert ruff here
+      - name: run ruff format
+        uses: astral-sh/ruff-action@v3
   test:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-      - name: run pytest
-        run: # todo: run pytest
+#      - name: run pytest
+#        run: # todo: run pytest
   build:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-      - name: build image
-        run: # todo: build dockerfile to check it works
+#      - name: build image
+#        run: # todo: build dockerfile to check it works

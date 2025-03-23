@@ -1,7 +1,9 @@
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import psutil
 import sentry_sdk
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -56,6 +58,7 @@ class SentryMiddleware(BaseMiddleware):
                 }
             )
             trans.set_tag('version', VERSION)
+            trans.set_measurement('used-memory', psutil.Process(os.getpid()).memory_info().rss, 'byte')
             return await handler(event, data)
 
 

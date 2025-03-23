@@ -49,7 +49,7 @@ class SentryMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         with sentry_sdk.start_transaction(name='handle-update') as trans:
-            trans.set_user(
+            sentry_sdk.set_user(
                 {
                     'id': (event.message or event.callback_query).from_user.id,
                     'username': (event.message or event.callback_query).from_user.username,

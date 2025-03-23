@@ -30,7 +30,7 @@ class UsersMiddleware(BaseMiddleware):
     ) -> Any:
         pg: Engine = data['pg']
         user: User = data['event_context'].user
-        with sentry_sdk.start_span(op='middleware', name='handle-user'):
+        with sentry_sdk.start_span(op='middleware.handle-user'):
             async with pg.acquire() as conn:
                 user_db = await msg_from_user(
                     conn, user.id, user.username, user.first_name, user.last_name, user.is_premium, user.language_code

@@ -77,9 +77,12 @@ async def main_bot() -> None:
             async with pg.acquire() as conn:
                 await create_tables(conn)
             if settings.webhook_enabled:
-                await bot.set_webhook(
-                    f'{settings.webhook_base_url}{settings.webhook_path}', secret_token=settings.webhook_secret
-                )
+                webhook_url = str(settings.webhook_base_url)
+                if webhook_url.endswith('/') and settings.webhook_path.startswith('/'):
+                    webhook_url += settings.webhook_path[1:]
+                else:
+                    webhook_url += settings.webhook_path
+                await bot.set_webhook(webhook_url, secret_token=settings.webhook_secret)
 
         dp.update.middleware(SentryMiddleware())
         log.info('Error handling middlewares registered')

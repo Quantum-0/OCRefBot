@@ -92,7 +92,12 @@ async def main_bot() -> None:
         dp.message.middleware(UsersMiddleware())
         log.info('Saving users middleware registered')
 
-        bot = Bot(settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        bot_args = {'token': settings.bot_token, 'default': DefaultBotProperties(parse_mode=ParseMode.HTML)}
+        if settings.proxy_url:
+            bot_args['proxy'] = settings.proxy_url
+            if settings.proxy_auth:
+                bot_args['proxy_auth'] = settings.proxy_auth
+        bot = Bot(**bot_args)
         log.info('Bot initialized')
 
         await bot.set_my_commands(

@@ -76,13 +76,6 @@ async def main_bot() -> None:
         async def startup(pg: Engine, *_: Any, **__: Any) -> None:
             async with pg.acquire() as conn:
                 await create_tables(conn)
-            if settings.webhook_enabled:
-                webhook_url = str(settings.webhook_base_url)
-                if webhook_url.endswith('/') and settings.webhook_path.startswith('/'):
-                    webhook_url += settings.webhook_path[1:]
-                else:
-                    webhook_url += settings.webhook_path
-                await bot.set_webhook(webhook_url, secret_token=settings.webhook_secret)
 
         dp.update.middleware(SentryMiddleware())
         log.info('Error handling middlewares registered')
@@ -140,4 +133,13 @@ async def main_bot() -> None:
         await runner.setup()
         site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
         await site.start()
+
+        log.info('Server started. Registering webhook')
+        webhook_url = str(settings.webhook_base_url)
+        if webhook_url.endswith('/') and settings.webhook_path.startswith('/'):
+            webhook_url += settings.webhook_path[1:]
+        else:
+            webhook_url += settings.webhook_path
+        await bot.set_webhook(webhook_url, secret_token=settings.webhook_secret)
+        log.info('Webhook registered. Bot is started')
         await asyncio.Event().wait()

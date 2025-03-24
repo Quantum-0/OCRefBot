@@ -83,6 +83,8 @@ async def main_bot() -> None:
                 else:
                     webhook_url += settings.webhook_path
                 await bot.set_webhook(webhook_url, secret_token=settings.webhook_secret)
+                log.info('Webhook registered')
+            log.info('Bot startup is done')
 
         dp.update.middleware(SentryMiddleware())
         log.info('Error handling middlewares registered')

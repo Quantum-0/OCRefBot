@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable
@@ -136,3 +137,4 @@ async def main_bot() -> None:
         await runner.setup()
         site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
         await site.start()
+        await asyncio.Event().wait()

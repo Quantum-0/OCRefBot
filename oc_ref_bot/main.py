@@ -22,6 +22,11 @@ async def healthcheck() -> None:
     if not settings.healthcheck_url:
         logger.info('Ran without healthcheck')
         return
+    request_params = {'url': settings.healthcheck_url}
+    if settings.proxy_url:
+        request_params['proxy'] = settings.proxy_url
+        if settings.proxy_auth:
+            request_params['proxy_auth'] = settings.proxy_auth
     async with aiohttp.ClientSession() as session:
         while True:
             try:

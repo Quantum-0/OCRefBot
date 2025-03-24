@@ -132,4 +132,7 @@ async def main_bot() -> None:
         setup_application(app, dp, bot=bot)
 
         log.info('Starting web server')
-        aiohttp.web.run_app(app, host=settings.web_server_host, port=settings.web_server_port)
+        runner = aiohttp.web.AppRunner(app)
+        await runner.setup()
+        site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
+        await site.start()

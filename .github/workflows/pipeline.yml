@@ -33,8 +33,19 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-#      - name: run pytest
-#        run: # todo: run pytest
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip wheel && pip install -e '.[test]'
+      - name: Test with pytest
+        run: |
+          coverage run -m pytest  -v -s
+      - name: Generate Coverage Report
+        run: |
+          coverage report -m
   build:
     runs-on: ubuntu-latest
     steps:

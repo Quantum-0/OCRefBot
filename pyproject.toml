@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "ruff",
+    "testcontainers==4.10.0",
 ]
 
 [project.scripts]
@@ -92,3 +93,6 @@ ignore = ["COM812", "RUF001", "RUF100", "RUF003"]
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "single"
 inline-quotes = "single"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

@@ -1,6 +1,6 @@
 from typing import Self
 
-from pydantic import Field, HttpUrl, model_validator
+from pydantic import Field, HttpUrl, computed_field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     webhook_secret: str | None = Field(default='my-very-very-very-secret-webhook-string')
     webhook_base_url: HttpUrl | None = Field(default=None)
     webhook_enabled: bool = Field(default=False)
+
+    @computed_field(return_type=dict)  # type: ignore[misc]
+    @property
+    def webhook_params(self) -> dict:
+        webhook_url = str(self.webhook_base_url)
+        if webhook_url.endswith('/') and self.webhook_path.startswith('/'):
+            webhook_url += self.webhook_path[1:]
+        else:
+            webhook_url += self.webhook_path
+        return {'url': webhook_url, 'secret_token': self.webhook_secret}
 
     @model_validator(mode='after')
     def webhook_settings_check(self) -> Self:

@@ -65,86 +65,101 @@ class SentryMiddleware(BaseMiddleware):
             return await handler(event, data)
 
 
+async def make_bot() -> Bot:
+    bot_args = {'token': settings.bot_token, 'default': DefaultBotProperties(parse_mode=ParseMode.HTML)}
+    if settings.proxy_url:
+        bot_args['proxy'] = settings.proxy_url
+        if settings.proxy_auth:
+            bot_args['proxy_auth'] = settings.proxy_auth
+    bot = Bot(**bot_args)
+    log.info('Bot initialized')
+
+    await bot.set_my_commands(
+        [
+            BotCommand(command='help', description='Справка по командам'),
+            # BotCommand(command='version', description='Текущая версия бота'),
+            BotCommand(command='add', description='Добавление референса'),
+            BotCommand(command='del', description='Удаление референса'),
+            BotCommand(command='settings', description='Настройки'),
+            BotCommand(command='admin', description='Меню администратора бота'),
+        ]
+    )
+    log.info('Bot command list updated')
+
+    me = await bot.get_me()
+    if me.full_name != f'{settings.bot_name} [{VERSION}]':
+        await bot.set_my_name(f'{settings.bot_name} [{VERSION}]')
+    log.info('Bot name was set')
+
+    if settings.webhook_enabled:
+        await bot.set_webhook(**settings.webhook_params, drop_pending_updates=False)
+        log.info('Webhook registered')
+    else:
+        await bot.delete_webhook(drop_pending_updates=False)
+        log.info('Webhook deleted')
+
+    return bot
+
+
+async def make_dp(pg_engine: Engine) -> Dispatcher:
+    dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
+    log.info('Dispatcher created')
+
+    @dp.startup()
+    async def startup(pg: Engine, *_: Any, **__: Any) -> None:
+        async with pg.acquire() as conn:
+            await create_tables(conn)
+        log.info('Bot startup is done')
+
+    dp.update.middleware(SentryMiddleware())
+    log.info('Error handling middlewares registered')
+
+    dp.message.middleware(UsersMiddleware())
+    log.info('Saving users middleware registered')
+
+    dp.include_router(admin_router)
+    log.info('Admin router registered')
+    dp.include_router(cmd_router)
+    log.info('Commands router registered')
+    dp.include_router(settings_router)
+    log.info('Settings router registered')
+    dp.include_router(inline_router)
+    log.info('Inline router registered')
+
+    return dp
+
+
+async def start_bot_with_polling(bot: Bot, dispatcher: Dispatcher) -> None:
+    log.info('Starting polling')
+    await dispatcher.start_polling(bot)
+
+
+async def start_bot_as_server(bot: Bot, dispatcher: Dispatcher) -> None:
+    log.info('Initializating web server')
+    app = aiohttp.web.Application()
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dispatcher,
+        bot=bot,
+        secret_token=settings.webhook_secret,
+    )
+    webhook_requests_handler.register(app, path=settings.webhook_path)
+    setup_application(app, dispatcher, bot=bot)
+
+    log.info('Starting web server')
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
+    await site.start()
+    await asyncio.Event().wait()
+
+
 async def main_bot() -> None:
     log.info('Starting bot...')
     log.info(f'Webhook mode is {'ENABLED' if settings.webhook_enabled else 'DISABLED'}')
     async with db_engine() as pg_engine:
-        dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
-        log.info('Dispatcher created')
-
-        @dp.startup()
-        async def startup(pg: Engine, *_: Any, **__: Any) -> None:
-            async with pg.acquire() as conn:
-                await create_tables(conn)
-            if settings.webhook_enabled:
-                webhook_url = str(settings.webhook_base_url)
-                if webhook_url.endswith('/') and settings.webhook_path.startswith('/'):
-                    webhook_url += settings.webhook_path[1:]
-                else:
-                    webhook_url += settings.webhook_path
-                await bot.set_webhook(webhook_url, secret_token=settings.webhook_secret)
-                log.info('Webhook registered')
-            log.info('Bot startup is done')
-
-        dp.update.middleware(SentryMiddleware())
-        log.info('Error handling middlewares registered')
-
-        dp.message.middleware(UsersMiddleware())
-        log.info('Saving users middleware registered')
-
-        bot_args = {'token': settings.bot_token, 'default': DefaultBotProperties(parse_mode=ParseMode.HTML)}
-        if settings.proxy_url:
-            bot_args['proxy'] = settings.proxy_url
-            if settings.proxy_auth:
-                bot_args['proxy_auth'] = settings.proxy_auth
-        bot = Bot(**bot_args)
-        log.info('Bot initialized')
-
-        await bot.set_my_commands(
-            [
-                BotCommand(command='help', description='Справка по командам'),
-                # BotCommand(command='version', description='Текущая версия бота'),
-                BotCommand(command='add', description='Добавление референса'),
-                BotCommand(command='del', description='Удаление референса'),
-                BotCommand(command='settings', description='Настройки'),
-                BotCommand(command='admin', description='Меню администратора бота'),
-            ]
-        )
-        log.info('Bot command list updated')
-
-        me = await bot.get_me()
-        if me.full_name != f'{settings.bot_name} [{VERSION}]':
-            await bot.set_my_name(f'{settings.bot_name} [{VERSION}]')
-        log.info('Bot name was set')
-
-        dp.include_router(admin_router)
-        log.info('Admin router registered')
-        dp.include_router(cmd_router)
-        log.info('Commands router registered')
-        dp.include_router(settings_router)
-        log.info('Settings router registered')
-        dp.include_router(inline_router)
-        log.info('Inline router registered')
-
+        bot: Bot = await make_bot()
+        dp: Dispatcher = await make_dp(pg_engine)
         if not settings.webhook_enabled:
-            log.info('Starting polling')
-            await bot.delete_webhook(drop_pending_updates=False)
-            await dp.start_polling(bot)
-            return
-
-        log.info('Initializating web server')
-        app = aiohttp.web.Application()
-        webhook_requests_handler = SimpleRequestHandler(
-            dispatcher=dp,
-            bot=bot,
-            secret_token=settings.webhook_secret,
-        )
-        webhook_requests_handler.register(app, path=settings.webhook_path)
-        setup_application(app, dp, bot=bot)
-
-        log.info('Starting web server')
-        runner = aiohttp.web.AppRunner(app)
-        await runner.setup()
-        site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
-        await site.start()
-        await asyncio.Event().wait()
+            await start_bot_with_polling(bot, dp)
+        else:
+            await start_bot_as_server(bot, dp)

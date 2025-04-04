@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock
 import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.types import Message, Update
-from bot import UsersMiddleware
-from database import create_tables, db_engine, get_user
 from testcontainers.postgres import PostgresContainer
 
+from oc_ref_bot.bot import UsersMiddleware
 from oc_ref_bot.cmd_router import router as cmd_router
 from oc_ref_bot.config import settings
+from oc_ref_bot.database import create_tables, db_engine, get_user
 
 pytestmark = pytest.mark.asyncio  # Required for pytest-asyncio
 

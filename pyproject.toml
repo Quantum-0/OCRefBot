@@ -29,6 +29,8 @@ dependencies = [
 test = [
     "ruff",
     "testcontainers==4.10.0",
+    "coverage==7.8.0",
+    "pytest-env==1.1.5"
 ]
 
 [project.scripts]
@@ -96,3 +98,12 @@ inline-quotes = "single"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+    "BOT_TOKEN=123456789:3cf4795c9a63ccccf6d88a9f0893151dbeb",
+    "ADMIN_ID=194573162",
+    "SENTRY_DSN=http://localhost/",
+    "DB_USER=test",
+    "DB_PASS=test",
+    "DB_HOST=localhost",
+    "DB_DB=test"
+]

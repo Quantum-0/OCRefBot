@@ -109,3 +109,6 @@ env = [
     "DB_HOST=localhost",
     "DB_DB=test"
 ]
+
+[tool.coverage.report]
+omit = ["config-3.py", "config.py"]

@@ -100,6 +100,7 @@ inline-quotes = "single"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
 env = [
     "BOT_TOKEN=123456789:3cf4795c9a63ccccf6d88a9f0893151dbeb",
     "ADMIN_ID=194573162",

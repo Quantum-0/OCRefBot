@@ -15,7 +15,7 @@ metadata = sa.MetaData()
 tbl_users = sa.Table(
     'ocrefbot_users',
     metadata,
-    sa.Column('id', sa.INTEGER, primary_key=True),
+    sa.Column('id', sa.BIGINT, primary_key=True),
     sa.Column('username', sa.TEXT),
     sa.Column('first_name', sa.TEXT),
     sa.Column('last_name', sa.TEXT),
@@ -54,7 +54,7 @@ async def create_tables(conn):
     # await conn.execute("DROP TABLE IF EXISTS tbl")
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_users (
-            id INTEGER PRIMARY KEY,
+            id BIGINT PRIMARY KEY,
             username TEXT,
             first_name TEXT,
             last_name TEXT,
@@ -69,7 +69,7 @@ async def create_tables(conn):
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_refs (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            user_id INTEGER NOT NULL REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             ref_name TEXT NOT NULL,
             doc_file_id TEXT,
             photo_file_id TEXT,
@@ -82,7 +82,7 @@ async def create_tables(conn):
     )
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_settings (
-            user_id INTEGER NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             show_verification BOOLEAN NOT NULL DEFAULT TRUE,
             inline_format TEXT NOT NULL DEFAULT 'PHOTO+DOC',
             inline_input_mode TEXT NOT NULL DEFAULT 'CAPTION'

@@ -147,7 +147,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
         str(uuid.uuid4()) + '.' + message.document.file_name.split('.')[-1]
     )
     try:
-        await message.bot.download(message.document.file_id, destination=path)
+        await message.bot.download(message.document.file_id, destination=path, timeout=60)
         if os.stat(path).st_size > 35 * (2**20):  # > 35MB
             await message.answer(
                 'Оу май.. Твой файл.. Он такой большой О:\n'

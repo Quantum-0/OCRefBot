@@ -87,8 +87,9 @@ async def make_bot() -> Bot:
     log.info('Bot command list updated')
 
     me = await bot.get_me()
-    if me.full_name != f'{settings.bot_name} [{VERSION}]':
-        await bot.set_my_name(f'{settings.bot_name} [{VERSION}]')
+    bot_name = f'{settings.bot_name} [{VERSION}]'
+    if me.full_name != bot_name:
+        await bot.set_my_name(bot_name)
     log.info('Bot name was set')
 
     if settings.webhook_enabled:

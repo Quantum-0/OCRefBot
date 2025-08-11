@@ -11,6 +11,7 @@ sentry_sdk.init(
     dsn=settings.sentry_dsn,
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
+    # http_proxy=
 )
 
 from oc_ref_bot.bot import main_bot  # noqa: E402

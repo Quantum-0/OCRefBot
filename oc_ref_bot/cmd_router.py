@@ -30,11 +30,12 @@ class ChatState(StatesGroup):
 
 
 @router.message(Command('start'))
-async def cmd_start(message: Message):
+async def cmd_start(message: Message) -> None:
     await message.bot.send_message(
         message.chat.id,
         'Драсти\n\n'
-        'Я бот, который помогает удобно хранить рефки на персонажей, с возможностью быстрого доступа к ним и отправки их\n\n'
+        'Я бот, который помогает удобно хранить рефки на персонажей, '
+        'с возможностью быстрого доступа к ним и отправки их\n\n'
         'Надеюсь я буду Вам полезен ^-^\n\n'
         'Чтоб получить подробную инструкцию по пользованию боту, используйте команду /help\n\n'
         'Меня сделал @quantum0, по всем вопросам насчёт меня можете обращаться к нему :>\n\n'
@@ -47,32 +48,36 @@ async def cmd_start(message: Message):
 
 
 @router.message(Command('help'))
-async def cmd_help(message: Message):
+async def cmd_help(message: Message) -> None:
     await message.bot.send_message(
         message.chat.id,
         '<b>Справка по работе бота:</b>\n\n'
         'Для начала, тебе нужно загрузить рефку на своего персонажика.\n'
-        'Для этого отправь команду /add, после чего я попрошу тебя прислать мне файлик и указать имя персонажа (название рефа, как удобно)\n'
+        'Для этого отправь команду /add, после чего я попрошу тебя прислать мне файлик '
+        'и указать имя персонажа (название рефа, как удобно)\n'
         'Рефку нужно отправлять документом, не картинкой (кнопочка "отправить без сжатия")\n'
         'После того, как ты это сделаешь, я сохраню рефку в своей БД\n'
-        'Теперь, для того чтобы отправить её кому-либо, перейди в диалог с этим человеком (так же поддерживаются групповые чаты и каналы) '
+        'Теперь, для того чтобы отправить её кому-либо, перейди в диалог с этим человеком '
+        '(так же поддерживаются групповые чаты и каналы) '
         'и напиши в начале своего сообщения моё имя, начиная с @\n'
         'Когда ты это сделаешь, прям в этом диалоге откроется inline-менюшечка, где ты увидишь свой реф\n'
         'Нажимаешь на него - рефка отправляется ^-^\n'
-        'Если у тебя слишком много персонажей, то ты можешь начать вводить его имя, указанное при добавлении, я постараюсь найти его по имени с:\n\n'
+        'Если у тебя слишком много персонажей, то ты можешь начать вводить его имя, указанное при добавлении, '
+        'я постараюсь найти его по имени с:\n\n'
         '"Зачем всё это нужно", спросишь ты. Я отвечу тебе так - вот ты где хранишь свои рефки? '
         'Когда тебе надо скинуть реф, куда ты лезешь? В избранное? В файлы на телефоне/компе? '
         'Воть моему создателю каждый раз неудобно открывать галерею на телефоне и искать там реф, '
         'Или лезть в свой канал, искать там закреплённое сообщение и его пересылать. Про "избранное" я вообще молчу.. '
         'Скажу тебе по секрету, у него там такааая помойка из всяких файлов/записок/заметок, ууххх.. '
         'Ну воть, а я сделан для того чтоб помочь легко найти и достать свой реф uwu\n\n'
-        'Так же реф всегда можно удалить, для этого достаточно воспользоваться командой /del и выбрать, какой реф вы хотите удалить c:',
+        'Так же реф всегда можно удалить, для этого достаточно воспользоваться командой /del '
+        'и выбрать, какой реф вы хотите удалить c:',
     )
     log.info('User %s asked for help', message.from_user.full_name)
 
 
 @router.message(Command('add'))
-async def cmd_add(message: Message, state: FSMContext):
+async def cmd_add(message: Message, state: FSMContext) -> None:
     await message.bot.send_message(
         message.chat.id,
         'Укажи имя персонажа или название референса, который хочешь добавить',
@@ -82,11 +87,11 @@ async def cmd_add(message: Message, state: FSMContext):
 
 
 @router.message(ChatState.name_input, F.text)
-async def cmd_add_1(message: Message, state: FSMContext):
-    if len(message.text) > 128:
+async def cmd_add_1(message: Message, state: FSMContext) -> None:
+    if len(message.text) > 128:  # noqa: PLR2004
         await message.bot.send_message(message.chat.id, 'Слишком длинное имя, давай что-нибудь покороче о:')
         return
-    if len(message.text) < 2:
+    if len(message.text) < 2:  # noqa: PLR2004
         await message.bot.send_message(message.chat.id, 'Слишком короткое имя, давай хотя бы пару букв о:')
         return
     await state.set_data({'name': message.text})
@@ -96,7 +101,7 @@ async def cmd_add_1(message: Message, state: FSMContext):
 
 
 @router.message(ChatState.add_ref, F.photo)
-async def cmd_add_2_photo(message: Message, state: FSMContext):
+async def cmd_add_2_photo(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     await message.bot.send_message(
         message.chat.id,
@@ -118,7 +123,7 @@ async def cmd_add_2_photo(message: Message, state: FSMContext):
 
 
 @router.message(ChatState.add_ref, F.text == 'Хочу сохранить в таком виде')
-async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
+async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine) -> None:
     async with pg.acquire() as conn:
         data = await state.get_data()
         try:
@@ -140,7 +145,7 @@ async def cmd_add_2_confirm(message: Message, state: FSMContext, pg: Engine):
 
 
 @router.message(ChatState.add_ref, F.document)
-async def cmd_add_2_doc(message: Message, state: FSMContext):
+async def cmd_add_2_doc(message: Message, state: FSMContext) -> None:
     await message.bot.send_chat_action(message.chat.id, 'upload_photo')
     data = await state.get_data()
     path = Path(os.path.dirname(os.path.realpath(__file__))) / (
@@ -193,7 +198,7 @@ async def cmd_add_2_doc(message: Message, state: FSMContext):
 
 
 @router.message(ChatState.confirm_adding, F.text == 'Сохранить')
-async def cmd_add_3_confirm(message: Message, state: FSMContext, pg: Engine):
+async def cmd_add_3_confirm(message: Message, state: FSMContext, pg: Engine) -> None:
     async with pg.acquire() as conn:
         data = await state.get_data()
         try:
@@ -215,7 +220,7 @@ async def cmd_add_3_confirm(message: Message, state: FSMContext, pg: Engine):
 
 
 @router.message(F.text == 'Отменить')
-async def cmd_cancel(message: Message, state: FSMContext):
+async def cmd_cancel(message: Message, state: FSMContext) -> None:
     log.info('User %s has canceled action', message.from_user.full_name)
     await message.bot.send_message(
         message.chat.id,
@@ -226,17 +231,19 @@ async def cmd_cancel(message: Message, state: FSMContext):
 
 
 @router.message(Command('del'))
-async def cmd_del(message: Message, state: FSMContext):
+async def cmd_del(message: Message, state: FSMContext) -> None:
     log.info('User %s deleting ref', message.from_user.full_name)
     await message.bot.send_message(
         message.chat.id,
-        'Хорошо, тогда отправь мне пожалуйста реф, который желаешь удалить через инлайн-режим.\n\nДля этого в начале сообщения напиши @OCRefBot и затем выбери реф, который хочешь удалить из появившегося списка с:',
+        'Хорошо, тогда отправь мне пожалуйста реф, который желаешь удалить через инлайн-режим.\n\n'
+        'Для этого в начале сообщения напиши @OCRefBot и затем выбери реф,'
+        'который хочешь удалить из появившегося списка с:',
     )
     await state.set_state(ChatState.del_ref)
 
 
 @router.message(ChatState.del_ref_confirm, F.text == 'Да, удалить')
-async def cmd_del_confirm(message: Message, state: FSMContext, pg: Engine):
+async def cmd_del_confirm(message: Message, state: FSMContext, pg: Engine) -> None:
     async with pg.acquire() as conn:
         data = await state.get_data()
         try:

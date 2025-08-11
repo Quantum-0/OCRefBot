@@ -30,11 +30,14 @@ class AdminFilter(BaseFilter):
 
 
 @router.message(Command('admin'))
-async def cmd_adm(message: Message, state: FSMContext):
+async def cmd_adm(message: Message, state: FSMContext) -> None:  # noqa: ARG001
     log.info('User %s accessing admin menu', message.from_user.full_name)
     if message.from_user.id != settings.admin_id:
         await message.answer(
-            'У вас нет доступа к меню администратора :&lt;\nЕсли у вас возникла какая-то проблема, появились вопросы или есть пожелания к боту - вы можете обратиться к нему в ЛС - @quantum0'
+            'У вас нет доступа к меню администратора :&lt;\n'
+            'Если у вас возникла какая-то проблема, '
+            'появились вопросы или есть пожелания к боту '
+            '- вы можете обратиться к нему в ЛС - @quantum0'
         )
         return
     rkb = ReplyKeyboardBuilder()
@@ -46,7 +49,7 @@ async def cmd_adm(message: Message, state: FSMContext):
 
 
 @router.message(AdminFilter, F.text == 'Статистика')
-async def cmd_stat(message: Message):
+async def cmd_stat(message: Message) -> None:
     log.info('User %s requests statistics', message.from_user.full_name)
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='Статистика по пользователям')
@@ -56,7 +59,7 @@ async def cmd_stat(message: Message):
 
 
 @router.message(AdminFilter, F.text == 'Статистика по пользователям')
-async def cmd_stat_user(message: Message):
+async def cmd_stat_user(message: Message) -> None:
     log.info('User %s requests statistics for users', message.from_user.full_name)
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='Последние 10 новых пользователей бота')
@@ -66,7 +69,7 @@ async def cmd_stat_user(message: Message):
 
 
 @router.message(AdminFilter, F.text == 'Статистика по референсам')
-async def cmd_stat_user(message: Message):
+async def cmd_stat_ref(message: Message) -> None:
     log.info('User %s requests statistics for refs', message.from_user.full_name)
     rkb = ReplyKeyboardBuilder()
     rkb.button(text='Последние отправленные референсы')
@@ -80,10 +83,11 @@ def user_row_to_md(user: dict[str, Any]) -> str:
         f'Имя: <i>{user["first_name"]} {user["last_name"]}</i>\n'
         f'Статус премиум: {user["is_premium"]}\n'
         f'Язык: {user["language_code"]}\n'
-        f'Добавлен {user["created_at"].strftime('%Y-%m-%d %H:%M:%S')}\n'
+        f'Добавлен {user["created_at"].strftime("%Y-%m-%d %H:%M:%S")}\n'
         f'Кол-во отправленных сообщений: {user["messages_count"]}\n'
         f'Кол-во референсов: {user["refs_count"]}\n'
-        f'Последний раз отправлял реф: {user["last_send"].strftime('%Y-%m-%d %H:%M:%S') if user["last_send"] else "N/A"}.'
+        f'Последний раз отправлял реф: '
+        f'{user["last_send"].strftime("%Y-%m-%d %H:%M:%S") if user["last_send"] else "N/A"}.'
     )
 
 
@@ -94,18 +98,19 @@ def ref_row_to_md(ref: dict[str, Any]) -> str:
         f'- <i>{ref["first_name"]} {ref["last_name"]}</i>\n'
         f'- <b>{ref["user_id"]}</b> @{ref["username"]}\n'
         f'Название: {ref["ref_name"]}\n'
-        f'Добавлен {ref["created_at"].strftime('%Y-%m-%d %H:%M:%S')}\n'
-        f'Использован {ref["used_at"].strftime('%Y-%m-%d %H:%M:%S') if ref["used_at"] else "N/A"}\n'
+        f'Добавлен {ref["created_at"].strftime("%Y-%m-%d %H:%M:%S")}\n'
+        f'Использован {ref["used_at"].strftime("%Y-%m-%d %H:%M:%S") if ref["used_at"] else "N/A"}\n'
         f'Отправлен: {ref["used_count"]} раз\n'
         f'Владелец верифицирован: {"ДА" if ref["verified"] else "НЕТ"}'
     )
 
 
 @router.message(AdminFilter, F.text == 'Общая статистика')
-async def cmd_stat_common(message: Message, pg: Engine):
+async def cmd_stat_common(message: Message, pg: Engine) -> None:
     log.info('User %s requests common statistics', message.from_user.full_name)
 
-    # Сколько рефов было использовано/отправлено за последнюю неделю/месяц, сколько юзеров пользовались ботом за последнюю неделю/месяц
+    # Сколько рефов было использовано/отправлено за последнюю неделю/месяц,
+    #  сколько юзеров пользовались ботом за последнюю неделю/месяц
     # TODO ^
     async with pg.acquire() as conn:
         users_count = await (await conn.execute(sa.select(sa.func.count(tbl_users.c.id)))).scalar()
@@ -128,7 +133,7 @@ async def cmd_stat_common(message: Message, pg: Engine):
 
 
 @router.message(AdminFilter, F.text == 'Последние 10 новых пользователей бота')
-async def cmd_stat_user_last_reg(message: Message, pg: Engine):
+async def cmd_stat_user_last_reg(message: Message, pg: Engine) -> None:
     log.info('User %s requests statistics for users', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (
@@ -148,7 +153,7 @@ async def cmd_stat_user_last_reg(message: Message, pg: Engine):
 
 
 @router.message(AdminFilter, F.text == 'Последние 10 активных пользователей бота')
-async def cmd_stat_user_last_active(message: Message, pg: Engine):
+async def cmd_stat_user_last_active(message: Message, pg: Engine) -> None:
     log.info('User %s requests statistics for users', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (
@@ -168,7 +173,7 @@ async def cmd_stat_user_last_active(message: Message, pg: Engine):
 
 
 @router.message(AdminFilter, F.text == 'Пользователи без референсов')
-async def cmd_stat_user_no_refs(message: Message, pg: Engine):
+async def cmd_stat_user_no_refs(message: Message, pg: Engine) -> None:
     log.info('User %s requests statistics for users', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (
@@ -188,17 +193,17 @@ async def cmd_stat_user_no_refs(message: Message, pg: Engine):
 
 
 @router.message(AdminFilter, F.text == 'Дамп БД')
-async def cmd_dump(message: Message, pg: Engine):
+async def cmd_dump(message: Message, pg: Engine) -> None:
     log.info('User %s requests db dump', message.from_user.full_name)
     async with pg.acquire() as conn:
-        fname_users = f"dump_users_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
+        fname_users = f'dump_users_{datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H-%M")}.csv'
         with open(fname_users, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_users.c])
             rows = await (await conn.execute(sa.select(tbl_users))).fetchall()
             for row in rows:
                 out.writeheader()
                 out.writerow(dict(row))
-        fname_refs = f"dump_refs_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
+        fname_refs = f'dump_refs_{datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H-%M")}.csv'
         with open(fname_refs, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_refs.c])
             rows = await (await conn.execute(sa.select(tbl_refs))).fetchall()
@@ -207,11 +212,11 @@ async def cmd_dump(message: Message, pg: Engine):
                 out.writerow(dict(row))
     await message.answer_document(FSInputFile(fname_users))
     await message.answer_document(FSInputFile(fname_refs))
-    log.info('Dump sent', message.from_user.full_name)
+    log.info(f'Dump sent to {message.from_user.full_name}')
 
 
 @router.message(AdminFilter, F.text == 'Последние отправленные референсы')
-async def cmd_stat_ref_last_sent(message: Message, pg: Engine):
+async def cmd_stat_ref_last_sent(message: Message, pg: Engine) -> None:
     log.info('User %s refs stats', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (
@@ -236,7 +241,7 @@ async def cmd_stat_ref_last_sent(message: Message, pg: Engine):
 
 
 @router.message(AdminFilter, F.text == 'Последние добавленные референсы')
-async def cmd_stat_ref_last_added(message: Message, pg: Engine):
+async def cmd_stat_ref_last_added(message: Message, pg: Engine) -> None:
     log.info('User %s refs stats', message.from_user.full_name)
     async with pg.acquire() as conn:
         q = (

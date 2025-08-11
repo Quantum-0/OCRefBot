@@ -34,11 +34,11 @@ def _change_image_memory(path: str, file_size: int = 2**20) -> cv2.typing.MatLik
     new_width, new_height = int(new_bytes_ratio * width), int(new_bytes_ratio * height)
 
     # handle max w/h
-    if new_height > 2560:
+    if new_height > 2560:  # noqa: PLR2004
         ratio = new_height / 2560
         new_height = int(new_height / ratio)
         new_width = int(new_width / ratio)
-    if new_width > 2560:
+    if new_width > 2560:  # noqa: PLR2004
         ratio = new_width / 2560
         new_height = int(new_height / ratio)
         new_width = int(new_width / ratio)
@@ -89,7 +89,7 @@ def limit_image_memory(path: str, max_file_size: int, delta: float = 0.05, step_
         ratio *= max_file_size / new_memory
         steps += 1
 
-        if abs(new_memory - prev_memory) < 10:  # Prevent endless looping
+        if abs(new_memory - prev_memory) < 10:  # Prevent endless looping  # noqa: PLR2004
             log.warning('Image resizing has reached its limit of precision.')
             break
 

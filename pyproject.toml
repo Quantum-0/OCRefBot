@@ -14,18 +14,25 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "aiogram==3.12.*",
+    "aiohttp_socks==0.10.1",
     "pydantic-settings==2.4.*",
     "SQLAlchemy==1.4.*",
     "aiopg==1.4.*",
     "sentry-sdk==2.13.*",
     "numpy==2.2.*",
     "opencv-python==4.11.0.*",
-    "pillow==11.1.*"
+    "pillow==11.1.*",
+    "psutil==7.0.*"
 ]
 
 [project.optional-dependencies]
 test = [
     "ruff",
+    "testcontainers==4.10.0",
+    "coverage==7.8.0",
+    "pytest-env==1.1.5",
+    "pytest==8.3.5",
+    "pytest-asyncio==0.26.0"
 ]
 
 [project.scripts]
@@ -86,3 +93,26 @@ select = [
     "DTZ012",
 ]
 ignore = ["COM812", "RUF001", "RUF100", "RUF003"]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "single"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
+env = [
+    "BOT_TOKEN=123456789:3cf4795c9a63ccccf6d88a9f0893151dbeb",
+    "ADMIN_ID=194573162",
+    "SENTRY_DSN=http://localhost/",
+    "DB_USER=test",
+    "DB_PASS=test",
+    "DB_HOST=localhost",
+    "DB_DB=test"
+]
+
+[tool.coverage.report]
+omit = ["config-3.py", "config.py"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ERA001", "ANN001", "E501", "ANN201"]

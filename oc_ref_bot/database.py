@@ -1,12 +1,14 @@
 import contextlib
 import uuid
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import psycopg2
 import sqlalchemy as sa
-from aiopg.sa import SAConnection, create_engine
+from aiopg.sa import Engine, SAConnection, create_engine
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Row
 
 from oc_ref_bot.config import settings
 
@@ -15,7 +17,7 @@ metadata = sa.MetaData()
 tbl_users = sa.Table(
     'ocrefbot_users',
     metadata,
-    sa.Column('id', sa.INTEGER, primary_key=True),
+    sa.Column('id', sa.BIGINT, primary_key=True),
     sa.Column('username', sa.TEXT),
     sa.Column('first_name', sa.TEXT),
     sa.Column('last_name', sa.TEXT),
@@ -29,7 +31,7 @@ tbl_users = sa.Table(
 tbl_refs = sa.Table(
     'ocrefbot_refs',
     metadata,
-    sa.Column('id', UUID(True), primary_key=True, default=uuid.uuid4),
+    sa.Column('id', UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     sa.Column('user_id', None, sa.ForeignKey('ocrefbot_users.id'), nullable=False),
     sa.Column('ref_name', sa.TEXT, nullable=False),
     sa.Column('doc_file_id', sa.TEXT),
@@ -50,11 +52,10 @@ tbl_settings = sa.Table(
 )
 
 
-async def create_tables(conn):
-    # await conn.execute("DROP TABLE IF EXISTS tbl")
+async def create_tables(conn: SAConnection) -> None:
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_users (
-            id INTEGER PRIMARY KEY,
+            id BIGINT PRIMARY KEY,
             username TEXT,
             first_name TEXT,
             last_name TEXT,
@@ -69,7 +70,7 @@ async def create_tables(conn):
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_refs (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            user_id INTEGER NOT NULL REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             ref_name TEXT NOT NULL,
             doc_file_id TEXT,
             photo_file_id TEXT,
@@ -82,7 +83,7 @@ async def create_tables(conn):
     )
     await conn.execute(
         """CREATE TABLE IF NOT EXISTS ocrefbot_settings (
-            user_id INTEGER NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL PRIMARY KEY REFERENCES ocrefbot_users(id) ON DELETE CASCADE,
             show_verification BOOLEAN NOT NULL DEFAULT TRUE,
             inline_format TEXT NOT NULL DEFAULT 'PHOTO+DOC',
             inline_input_mode TEXT NOT NULL DEFAULT 'CAPTION'
@@ -90,13 +91,13 @@ async def create_tables(conn):
     )
 
 
-async def msg_from_user(
+async def msg_from_user(  # noqa: ANN201, PLR0913
     conn: SAConnection,
     user_id: int,
     username: str,
     first_name: str,
     last_name: str,
-    is_premium: bool,
+    is_premium: bool,  # noqa: FBT001
     language_code: str,
 ):
     query = (
@@ -155,7 +156,7 @@ class UserNotFoundError(Exception):
     pass
 
 
-async def get_user_settings(conn: SAConnection, user_id: int):
+async def get_user_settings(conn: SAConnection, user_id: int) -> Row:
     query = (
         sa.select(
             tbl_users.c.id.label('user_id'),
@@ -175,12 +176,12 @@ async def get_user_settings(conn: SAConnection, user_id: int):
     return await (await conn.execute(query)).fetchone()
 
 
-async def set_user_settings(conn: SAConnection, user_id: int, **params):
+async def set_user_settings(conn: SAConnection, user_id: int, **params) -> Row:
     query = sa.update(tbl_settings).values(params).where(tbl_settings.c.user_id == user_id).returning(tbl_settings)
     return await (await conn.execute(query)).fetchone()
 
 
-async def add_ref(conn: SAConnection, user_id: int, ref_name: str, doc_file_id: str, photo_file_id: str):
+async def add_ref(conn: SAConnection, user_id: int, ref_name: str, doc_file_id: str, photo_file_id: str) -> Row:
     query = (
         pg_insert(tbl_refs)
         .values({'user_id': user_id, 'ref_name': ref_name, 'doc_file_id': doc_file_id, 'photo_file_id': photo_file_id})
@@ -189,13 +190,15 @@ async def add_ref(conn: SAConnection, user_id: int, ref_name: str, doc_file_id: 
     try:
         return await (await conn.execute(query)).fetchone()
     except psycopg2.errors.UniqueViolation:
-        raise RefAlreadyExistsError
+        raise RefAlreadyExistsError from None
     except psycopg2.errors.ForeignKeyViolation:
-        raise UserNotFoundError
+        raise UserNotFoundError from None
 
 
-async def get_refs(conn: SAConnection, user_id: int, filter: str | None):
-    filter = filter.replace('_', '__').replace('*', '%').replace('?', '_') if filter else None
+async def get_refs(conn: SAConnection, user_id: int, filter: str | None) -> Row:  # noqa: A002
+    filter = (  # noqa: A001
+        filter.replace('_', '__').replace('*', '%').replace('?', '_') if filter else None
+    )
     query = (
         sa.select(tbl_refs)
         .where(tbl_refs.c.user_id == user_id)
@@ -211,18 +214,13 @@ async def move_ref_to_new_user(conn: SAConnection, ref_id: uuid.UUID, old_owner_
     query = (
         sa.update(tbl_refs)
         .value(user_id=new_owner_id)
-        .where(
-            sa.and_(
-                tbl_refs.c.user_id == old_owner_id,
-                tbl_refs.c.id == ref_id
-            )
-        )
+        .where(sa.and_(tbl_refs.c.user_id == old_owner_id, tbl_refs.c.id == ref_id))
         .returning(tbl_refs)
     )
     return bool(await (await conn.execute(query)).rowcount)
 
 
-async def ref_sent(conn: SAConnection, ref_id: uuid.UUID):
+async def ref_sent(conn: SAConnection, ref_id: uuid.UUID) -> Row:
     query = (
         sa.update(tbl_refs)
         .values(used_count=tbl_refs.c.used_count + 1, used_at=sa.func.now())
@@ -238,7 +236,7 @@ async def del_ref(conn: SAConnection, user_id: int, ref_id: uuid.UUID) -> bool:
 
 
 @contextlib.asynccontextmanager
-async def db_engine():
+async def db_engine() -> AsyncGenerator[Engine, None]:
     async with create_engine(
         dsn=f'postgresql://{settings.db_user}:{settings.db_pass}@{settings.db_host}/{settings.db_db}',
         # pool_size=10, max_overflow=0, max_lifetime=1

@@ -1,5 +1,6 @@
 import logging
 import uuid
+from typing import Any
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -25,11 +26,11 @@ log = logging.getLogger(__name__)
 
 
 @router.inline_query(F.query.len() >= 0)
-async def show_user_refs(inline_query: InlineQuery, pg: Engine):
+async def show_user_refs(inline_query: InlineQuery, pg: Engine) -> None:
     async with pg.acquire() as conn:
         user = await get_user(conn, inline_query.from_user.id)
         settings = await get_user_with_settings(conn, inline_query.from_user.id) or {}
-        refs = [
+        refs: list[dict[str, Any]] = [
             dict(ref)
             for ref in await get_refs(
                 conn,
@@ -54,12 +55,12 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
         )
         return
 
-    def make_caption(ref) -> str | None:
+    def make_caption(ref: dict[str, Any]) -> str | None:
         caption = ''
         if ref['verified'] and settings.get('show_verification', True):
             caption += '@OCRefBot: ✅ Verified Ref Owner\n'
         if settings.get('inline_input_mode', 'SEARCH') == 'CAPTION' and inline_query.query.strip() != '':
-            caption += f'Комментарий от пользователя:\n\n{inline_query.query.replace("<", "lt;").replace(">", "gt;").replace("✅ Verified Ref Owner", "❌ USER TRIES TO SCAM")}'
+            caption += f'Комментарий от пользователя:\n\n{inline_query.query.replace("<", "&lt;").replace(">", "&gt;").replace("✅ Verified Ref Owner", "❌ USER TRIES TO SCAM")}'
         if not caption:
             return None
         return caption.strip()
@@ -88,8 +89,8 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
 
 
 @router.chosen_inline_result()
-async def ref_sent(inline_result: ChosenInlineResult, state: FSMContext, pg: Engine):
-    sent_as_photo = inline_result.result_id.startswith('ph_')
+async def ref_sent(inline_result: ChosenInlineResult, state: FSMContext, pg: Engine) -> None:
+    sent_as_photo = inline_result.result_id.startswith('ph_')  # noqa: F841
     sent_as_doc = inline_result.result_id.startswith('doc_')
     sent_ref_id = uuid.UUID(inline_result.result_id.replace('ph_', '').replace('doc_', ''))
     async with pg.acquire() as conn:
@@ -100,13 +101,14 @@ async def ref_sent(inline_result: ChosenInlineResult, state: FSMContext, pg: Eng
         'document' if sent_as_doc else 'photo',
     )
 
-    match(await state.get_state()):
+    match await state.get_state():
         case ChatState.del_ref:
             if not ref:
                 await state.clear()
                 await inline_result.bot.send_message(
                     inline_result.from_user.id,
-                    'Ой.. Кажется эта рефка уже удалена и была отправлена из кэша о:\nБлижайшее время она пропадёт из инлайн-меню!',
+                    'Ой.. Кажется эта рефка уже удалена и была отправлена из кэша о:\n'
+                    'Ближайшее время она пропадёт из инлайн-меню!',
                 )
                 return
             await state.set_state(ChatState.del_ref_confirm)

@@ -7,14 +7,13 @@
 import logging
 from uuid import UUID
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, ChosenInlineResult, User
+from aiogram.types import ChosenInlineResult, Message, User
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiopg.sa import Engine
-
 from database import move_ref_to_new_user
 
 router = Router()
@@ -43,9 +42,7 @@ async def cmd_move_2(message: Message, state: FSMContext):
     new_owner = message.forward_from
     if new_owner == message.from_user:
         await message.answer(
-            'Нельзя передать реф самому себе.'
-            'Выберите другого пользователя или'
-            'воспользуйтесь командой отмены.'
+            'Нельзя передать реф самому себе.' 'Выберите другого пользователя или' 'воспользуйтесь командой отмены.'
         )
         return
     if new_owner is None:
@@ -86,6 +83,7 @@ async def cmd_move_3(inline_result: ChosenInlineResult, state: FSMContext, sent_
         'Иными словами, подтверждая сейчас данную операцию, Вы подтверждаете что выбранный персонаж вместе со всеми правами передаётся указанному пользователю.\n',
         reply_markup=reply_markup.as_markup(one_time_keyboard=True),
     )
+
 
 @router.message(SharingState.move_confirmation, F.text)
 async def cmd_move_4(message: Message, state: FSMContext, pg: Engine):

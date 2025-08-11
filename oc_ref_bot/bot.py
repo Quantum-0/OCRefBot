@@ -1,13 +1,18 @@
+import asyncio
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import aiohttp
+import psutil
 import sentry_sdk
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.strategy import FSMStrategy
 from aiogram.types import BotCommand, Message, Update, User
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiopg.sa import Engine
 
 from oc_ref_bot import VERSION
@@ -31,13 +36,14 @@ class UsersMiddleware(BaseMiddleware):
     ) -> Any:
         pg: Engine = data['pg']
         user: User = data['event_context'].user
-        async with pg.acquire() as conn:
-            user_db = await msg_from_user(
-                conn, user.id, user.username, user.first_name, user.last_name, user.is_premium, user.language_code
-            )
-            if user_db.banned:
-                await event.answer('Доступ к боту с данного аккаунта запрещён.')
-                return None
+        with sentry_sdk.start_span(op='middleware.handle-user'):
+            async with pg.acquire() as conn:
+                user_db = await msg_from_user(
+                    conn, user.id, user.username, user.first_name, user.last_name, user.is_premium, user.language_code
+                )
+                if user_db.banned:
+                    await event.answer('Доступ к боту с данного аккаунта запрещён.')
+                    return None
         return await handler(event, data)
 
 
@@ -48,65 +54,118 @@ class SentryMiddleware(BaseMiddleware):
         if (not event.message) and (not event.callback_query):
             return await handler(event, data)
 
-        sentry_sdk.set_user(
-            {
-                'id': (event.message or event.callback_query).from_user.id,
-                'username': (event.message or event.callback_query).from_user.username,
-            }
-        )
-        sentry_sdk.set_tag('version', VERSION)
-        return await handler(event, data)
+        with sentry_sdk.start_transaction(name='handle-update') as trans:
+            sentry_sdk.set_user(
+                {
+                    'id': (event.message or event.callback_query).from_user.id,
+                    'username': (event.message or event.callback_query).from_user.username,
+                }
+            )
+            trans.set_tag('version', VERSION)
+            trans.set_measurement('used-memory', psutil.Process(os.getpid()).memory_info().rss, 'byte')
+            return await handler(event, data)
+
+
+async def make_bot() -> Bot:
+    bot_args = {'token': settings.bot_token, 'default': DefaultBotProperties(parse_mode=ParseMode.HTML)}
+    if settings.proxy_url:
+        bot_args['proxy'] = settings.proxy_url
+        if settings.proxy_auth:
+            bot_args['proxy_auth'] = settings.proxy_auth
+    bot = Bot(**bot_args)
+    log.info('Bot initialized')
+
+    await bot.set_my_commands(
+        [
+            BotCommand(command='help', description='Справка по командам'),
+            # BotCommand(command='version', description='Текущая версия бота'),  # noqa: ERA001
+            BotCommand(command='add', description='Добавление референса'),
+            BotCommand(command='del', description='Удаление референса'),
+            BotCommand(command='move', description='Передать персонажа другому владельцу'),
+            BotCommand(command='share', description='Дать доступ другому пользователю к своим рефкам'),
+            BotCommand(command='settings', description='Настройки'),
+            BotCommand(command='admin', description='Меню администратора бота'),
+        ]
+    )
+    log.info('Bot command list updated')
+
+    me = await bot.get_me()
+    bot_name = f'{settings.bot_name} [{VERSION}]'
+    if me.full_name != bot_name:
+        await bot.set_my_name(bot_name)
+    log.info('Bot name was set')
+
+    if settings.webhook_enabled:
+        await bot.set_webhook(**settings.webhook_params, drop_pending_updates=False)
+        log.info('Webhook registered')
+    else:
+        await bot.delete_webhook(drop_pending_updates=False)
+        log.info('Webhook deleted')
+
+    return bot
+
+
+async def make_dp(pg_engine: Engine) -> Dispatcher:
+    dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
+    log.info('Dispatcher created')
+
+    @dp.startup()
+    async def startup(pg: Engine, *_: Any, **__: Any) -> None:
+        async with pg.acquire() as conn:
+            await create_tables(conn)
+        log.info('Bot startup is done')
+
+    dp.update.middleware(SentryMiddleware())
+    log.info('Error handling middlewares registered')
+
+    dp.message.middleware(UsersMiddleware())
+    log.info('Saving users middleware registered')
+
+    dp.include_router(admin_router)
+    log.info('Admin router registered')
+    dp.include_router(cmd_router)
+    log.info('Commands router registered')
+    dp.include_router(sharing_router)
+    log.info('Sharing router registered')
+    dp.include_router(settings_router)
+    log.info('Settings router registered')
+    dp.include_router(inline_router)
+    log.info('Inline router registered')
+
+    return dp
+
+
+async def start_bot_with_polling(bot: Bot, dispatcher: Dispatcher) -> None:
+    log.info('Starting polling')
+    await dispatcher.start_polling(bot)
+
+
+async def start_bot_as_server(bot: Bot, dispatcher: Dispatcher) -> None:
+    log.info('Initializating web server')
+    app = aiohttp.web.Application()
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dispatcher,
+        bot=bot,
+        secret_token=settings.webhook_secret,
+    )
+    webhook_requests_handler.register(app, path=settings.webhook_path)
+    setup_application(app, dispatcher, bot=bot)
+
+    log.info('Starting web server')
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    site = aiohttp.web.TCPSite(runner, host=settings.web_server_host, port=settings.web_server_port)
+    await site.start()
+    await asyncio.Event().wait()
 
 
 async def main_bot() -> None:
     log.info('Starting bot...')
+    log.info(f'Webhook mode is {"ENABLED" if settings.webhook_enabled else "DISABLED"}')
     async with db_engine() as pg_engine:
-        dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT, pg=pg_engine)
-        log.info('Dispatcher created')
-
-        @dp.startup()
-        async def startup(pg, *_, **__):
-            async with pg.acquire() as conn:
-                await create_tables(conn)
-
-        dp.update.middleware(SentryMiddleware())
-        log.info('Error handling middlewares registered')
-
-        dp.message.middleware(UsersMiddleware())
-        log.info('Saving users middleware registered')
-
-        bot = Bot(settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-        log.info('Bot initialized')
-
-        await bot.set_my_commands(
-            [
-                BotCommand(command='help', description='Справка по командам'),
-                # BotCommand(command='version', description='Текущая версия бота'),
-                BotCommand(command='add', description='Добавление референса'),
-                BotCommand(command='del', description='Удаление референса'),
-                BotCommand(command='move', description='Передать персонажа другому владельцу'),
-                BotCommand(command='share', description='Дать доступ другому пользователю к своим рефкам'),
-                BotCommand(command='settings', description='Настройки'),
-                BotCommand(command='admin', description='Меню администратора бота'),
-            ]
-        )
-        log.info('Bot command list updated')
-
-        me = await bot.get_me()
-        if me.full_name != f'{settings.bot_name} [{VERSION}]':
-            await bot.set_my_name(f'{settings.bot_name} [{VERSION}]')
-        log.info('Bot name was set')
-
-        dp.include_router(admin_router)
-        log.info('Admin router registered')
-        dp.include_router(cmd_router)
-        log.info('Commands router registered')
-        dp.include_router(sharing_router)
-        log.info('Sharing router registered')
-        dp.include_router(settings_router)
-        log.info('Settings router registered')
-        dp.include_router(inline_router)
-        log.info('Inline router registered')
-
-        log.info('Starting polling')
-        await dp.start_polling(bot)
+        bot: Bot = await make_bot()
+        dp: Dispatcher = await make_dp(pg_engine)
+        if not settings.webhook_enabled:
+            await start_bot_with_polling(bot, dp)
+        else:
+            await start_bot_as_server(bot, dp)

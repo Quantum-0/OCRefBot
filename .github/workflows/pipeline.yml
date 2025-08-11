@@ -1,0 +1,55 @@
+name: Main pipeline
+
+on:
+  push:
+    branches: [ "master", "develop", "main" ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+      - name: run ruff format
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check --diff"
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+      - name: run ruff format
+        uses: astral-sh/ruff-action@v3
+#      - name: test report
+#        uses: dorny/test-reporter@v2
+#        if: success() || failure()    # run this step even if previous step failed
+#        with:
+#          name: JEST Tests            # Name of the check run which will be created
+#          path: report.xml    # Path to test results
+#          reporter: jest-junit        # Format of test results
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip wheel && pip install -e '.[test]'
+      - name: Test with pytest
+        run: |
+          coverage run -m pytest  -v -s
+      - name: Generate Coverage Report
+        run: |
+          coverage report -m
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+#      - name: build image
+#        run: # todo: build dockerfile to check it works

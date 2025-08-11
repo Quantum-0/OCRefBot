@@ -83,11 +83,11 @@ def user_row_to_md(user: dict[str, Any]) -> str:
         f'Имя: <i>{user["first_name"]} {user["last_name"]}</i>\n'
         f'Статус премиум: {user["is_premium"]}\n'
         f'Язык: {user["language_code"]}\n'
-        f'Добавлен {user["created_at"].strftime('%Y-%m-%d %H:%M:%S')}\n'
+        f'Добавлен {user["created_at"].strftime("%Y-%m-%d %H:%M:%S")}\n'
         f'Кол-во отправленных сообщений: {user["messages_count"]}\n'
         f'Кол-во референсов: {user["refs_count"]}\n'
         f'Последний раз отправлял реф: '
-        f'{user["last_send"].strftime('%Y-%m-%d %H:%M:%S') if user["last_send"] else "N/A"}.'
+        f'{user["last_send"].strftime("%Y-%m-%d %H:%M:%S") if user["last_send"] else "N/A"}.'
     )
 
 
@@ -98,8 +98,8 @@ def ref_row_to_md(ref: dict[str, Any]) -> str:
         f'- <i>{ref["first_name"]} {ref["last_name"]}</i>\n'
         f'- <b>{ref["user_id"]}</b> @{ref["username"]}\n'
         f'Название: {ref["ref_name"]}\n'
-        f'Добавлен {ref["created_at"].strftime('%Y-%m-%d %H:%M:%S')}\n'
-        f'Использован {ref["used_at"].strftime('%Y-%m-%d %H:%M:%S') if ref["used_at"] else "N/A"}\n'
+        f'Добавлен {ref["created_at"].strftime("%Y-%m-%d %H:%M:%S")}\n'
+        f'Использован {ref["used_at"].strftime("%Y-%m-%d %H:%M:%S") if ref["used_at"] else "N/A"}\n'
         f'Отправлен: {ref["used_count"]} раз\n'
         f'Владелец верифицирован: {"ДА" if ref["verified"] else "НЕТ"}'
     )
@@ -196,14 +196,14 @@ async def cmd_stat_user_no_refs(message: Message, pg: Engine) -> None:
 async def cmd_dump(message: Message, pg: Engine) -> None:
     log.info('User %s requests db dump', message.from_user.full_name)
     async with pg.acquire() as conn:
-        fname_users = f"dump_users_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
+        fname_users = f'dump_users_{datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H-%M")}.csv'
         with open(fname_users, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_users.c])
             rows = await (await conn.execute(sa.select(tbl_users))).fetchall()
             for row in rows:
                 out.writeheader()
                 out.writerow(dict(row))
-        fname_refs = f"dump_refs_{datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d_%H-%M')}.csv"
+        fname_refs = f'dump_refs_{datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H-%M")}.csv'
         with open(fname_refs, 'w') as f:
             out = DictWriter(f, fieldnames=[c.name for c in tbl_refs.c])
             rows = await (await conn.execute(sa.select(tbl_refs))).fetchall()

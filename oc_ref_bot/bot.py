@@ -156,7 +156,7 @@ async def start_bot_as_server(bot: Bot, dispatcher: Dispatcher) -> None:
 
 async def main_bot() -> None:
     log.info('Starting bot...')
-    log.info(f'Webhook mode is {'ENABLED' if settings.webhook_enabled else 'DISABLED'}')
+    log.info(f'Webhook mode is {"ENABLED" if settings.webhook_enabled else "DISABLED"}')
     async with db_engine() as pg_engine:
         bot: Bot = await make_bot()
         dp: Dispatcher = await make_dp(pg_engine)

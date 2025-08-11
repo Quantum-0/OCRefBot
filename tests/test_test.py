@@ -97,3 +97,9 @@ async def test_start_command(msg_gen, pg_engine):
         assert user.last_name == msg_gen.user.get('last_name')
         assert user.banned is False
         assert user.messages_count == 1
+
+
+async def test_dump_database(msg_gen, pg_engine):
+    """Test bot successfully dumps and loads database from dump."""
+
+    # TODO

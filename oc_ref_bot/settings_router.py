@@ -30,7 +30,7 @@ main_settings_buttons_markup = main_settings_buttons_markup.as_markup(one_time_k
 
 
 @router.message(Command('settings'))
-async def cmd_settings(message: Message):
+async def cmd_settings(message: Message) -> None:
     await message.answer(
         'Вы открыли меню настроек. Выберите, что вы хотите сделать',
         reply_markup=main_settings_buttons_markup,
@@ -39,7 +39,7 @@ async def cmd_settings(message: Message):
 
 
 @router.message(F.text == 'Изменить настройки для галочки верификации')
-async def edit_verification_settings(message: Message, pg: Engine, state: FSMContext):
+async def edit_verification_settings(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         settings = await get_user_settings(conn, message.from_user.id)
     rkb = ReplyKeyboardBuilder()
@@ -62,7 +62,7 @@ async def edit_verification_settings(message: Message, pg: Engine, state: FSMCon
 
 
 @router.message(SettingsState.settings_verification_mark, F.text == '✅ Включить отображение верификации')
-async def edit_verification_settings_enable(message: Message, pg: Engine, state: FSMContext):
+async def edit_verification_settings_enable(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, show_verification=True)
     await state.clear()
@@ -70,7 +70,7 @@ async def edit_verification_settings_enable(message: Message, pg: Engine, state:
 
 
 @router.message(SettingsState.settings_verification_mark, F.text == '❌ Выключить отображение верификации')
-async def edit_verification_settings_disable(message: Message, pg: Engine, state: FSMContext):
+async def edit_verification_settings_disable(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, show_verification=False)
     await state.clear()
@@ -78,7 +78,7 @@ async def edit_verification_settings_disable(message: Message, pg: Engine, state
 
 
 @router.message(F.text == 'Изменить формат отправки через инлайн меню')
-async def edit_inline_format(message: Message, pg: Engine, state: FSMContext):
+async def edit_inline_format(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         settings = await get_user_settings(conn, message.from_user.id)
     rkb = ReplyKeyboardBuilder()
@@ -100,7 +100,7 @@ async def edit_inline_format(message: Message, pg: Engine, state: FSMContext):
 
 
 @router.message(SettingsState.settings_inline_format, F.text == '🖼 Только фото')
-async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMContext):
+async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_format='PHOTO')
     await state.clear()
@@ -108,7 +108,7 @@ async def edit_inline_format_photo(message: Message, pg: Engine, state: FSMConte
 
 
 @router.message(SettingsState.settings_inline_format, F.text == '📂 Только файл')
-async def edit_inline_format_doc(message: Message, pg: Engine, state: FSMContext):
+async def edit_inline_format_doc(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_format='DOC')
     await state.clear()
@@ -116,7 +116,7 @@ async def edit_inline_format_doc(message: Message, pg: Engine, state: FSMContext
 
 
 @router.message(SettingsState.settings_inline_format, F.text == '🖼+📂 Оба')
-async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: FSMContext):
+async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_format='PHOTO+DOC')
     await state.clear()
@@ -124,7 +124,7 @@ async def edit_inline_format_photo_and_doc(message: Message, pg: Engine, state: 
 
 
 @router.message(F.text == 'Переключение обработки поля ввода инлайн меню')
-async def edit_input_mode(message: Message, pg: Engine, state: FSMContext):
+async def edit_input_mode(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         settings = await get_user_settings(conn, message.from_user.id)
     rkb = ReplyKeyboardBuilder()
@@ -146,7 +146,7 @@ async def edit_input_mode(message: Message, pg: Engine, state: FSMContext):
 
 
 @router.message(SettingsState.settings_input_mode, F.text == '🔍 Использовать ввод как поиск')
-async def edit_input_mode_search(message: Message, pg: Engine, state: FSMContext):
+async def edit_input_mode_search(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_input_mode='SEARCH')
     await state.clear()
@@ -154,7 +154,7 @@ async def edit_input_mode_search(message: Message, pg: Engine, state: FSMContext
 
 
 @router.message(SettingsState.settings_input_mode, F.text == '🔤 Использовать ввод как подпись под рефкой')
-async def edit_input_mode_caption(message: Message, pg: Engine, state: FSMContext):
+async def edit_input_mode_caption(message: Message, pg: Engine, state: FSMContext) -> None:
     async with pg.acquire() as conn:
         await set_user_settings(conn, message.from_user.id, inline_input_mode='CAPTION')
     await state.clear()

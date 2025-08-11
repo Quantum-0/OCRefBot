@@ -58,7 +58,7 @@ async def show_user_refs(inline_query: InlineQuery, pg: Engine):
         if ref['verified'] and settings.get('show_verification', True):
             caption += '@OCRefBot: ✅ Verified Ref Owner\n'
         if settings.get('inline_input_mode', 'SEARCH') == 'CAPTION' and inline_query.query.strip() != '':
-            caption += f'Комментарий от пользователя:\n\n{inline_query.query.replace("<", "lt;").replace(">", "gt;").replace("✅ Verified Ref Owner", "❌ USER TRIES TO SCAM")}'
+            caption += f'Комментарий от пользователя:\n\n{inline_query.query.replace("<", "&lt;").replace(">", "&gt;").replace("✅ Verified Ref Owner", "❌ USER TRIES TO SCAM")}'
         if not caption:
             return None
         return caption.strip()

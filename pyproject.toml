@@ -113,3 +113,6 @@ env = [
 
 [tool.coverage.report]
 omit = ["config-3.py", "config.py"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ERA001", "ANN001", "E501", "ANN201"]

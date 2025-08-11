@@ -77,7 +77,7 @@ async def make_bot() -> Bot:
     await bot.set_my_commands(
         [
             BotCommand(command='help', description='Справка по командам'),
-            # BotCommand(command='version', description='Текущая версия бота'),
+            # BotCommand(command='version', description='Текущая версия бота'),  # noqa: ERA001
             BotCommand(command='add', description='Добавление референса'),
             BotCommand(command='del', description='Удаление референса'),
             BotCommand(command='settings', description='Настройки'),
